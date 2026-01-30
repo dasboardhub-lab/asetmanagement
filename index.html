@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Manajemen Aset V10 (Mass Delete)</title>
+    
+    <!-- Tailwind CSS (Styling) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome (Icons) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- JsBarcode (Barcode Generator) -->
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.0/dist/JsBarcode.all.min.js"></script>
+
+    <!-- Html5-Qrcode (Camera Scanner) -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Print Styling */
+        @media print {
+            body * { visibility: hidden; }
+            #printArea, #printArea * { visibility: visible; }
+            #printArea { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
+        }
+
+        .modal-animate { animation: fadeIn 0.2s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        
+        /* Helper to hide menu items based on role */
+        .admin-only { display: none; }
+        .staff-allowed { display: flex; }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans antialiased h-screen flex overflow-hidden">
+
+    <!-- LOGIN SCREEN (Overlay) -->
+    <div id="login-screen" class="fixed inset-0 bg-slate-900 z-50 flex flex-col items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden p-8 text-center">
+            <div class="mb-6">
+                <i class="fa-solid fa-cube text-5xl text-blue-600 mb-2"></i>
+                <h1 class="text-2xl font-bold text-gray-800">AssetMgr Login</h1>
+                <p class="text-gray-500 text-sm">Masuk untuk memulai sesi</p>
+            </div>
+
+            <!-- Login Tabs -->
+            <div class="flex border-b mb-6">
+                <button onclick="switchLoginTab('admin')" id="tab-admin" class="flex-1 pb-2 border-b-2 border-blue-600 text-blue-600 font-bold">Admin</button>
+                <button onclick="switchLoginTab('staff')" id="tab-staff" class="flex-1 pb-2 border-b-2 border-transparent text-gray-400 hover:text-gray-600">Karyawan</button>
+            </div>
+
+            <!-- Form Admin (Hanya Password) -->
+            <form id="form-login-admin" onsubmit="handleLogin(event, 'admin')" class="space-y-4">
+                <div class="text-left text-sm text-gray-500 font-bold mb-1">Password Admin:</div>
+                <input type="password" id="login-password" placeholder="Masukkan Password..." class="w-full border rounded-lg p-3 bg-gray-50 text-center text-lg" required>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow-lg">Masuk sebagai Admin</button>
+            </form>
+
+            <!-- Form Staff -->
+            <form id="form-login-staff" onsubmit="handleLogin(event, 'staff')" class="space-y-4 hidden">
+                <div class="text-left text-sm text-gray-500 font-bold mb-1">NIK Karyawan:</div>
+                <input type="text" id="login-nik" placeholder="Contoh: 12345" class="w-full border rounded-lg p-3 bg-gray-50 text-center font-mono text-lg" required>
+                <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg shadow-lg">Masuk Sesi Opname</button>
+            </form>
+        </div>
+        <p class="text-slate-500 text-xs mt-8">Secure Asset Management System v5.8 (Mass Delete)</p>
+    </div>
+
+    <!-- SIDEBAR -->
+    <aside class="w-64 bg-slate-900 text-white flex flex-col shadow-xl z-20 hidden" id="sidebar">
+        <div class="p-6 border-b border-slate-700 flex items-center gap-3">
+            <i class="fa-solid fa-fire text-2xl text-orange-500"></i>
+            <div>
+                <h1 class="text-xl font-bold tracking-wide">AssetMgr</h1>
+                <p class="text-xs text-slate-400" id="user-role-display">Loading...</p>
+            </div>
+        </div>
+
+        <nav class="flex-1 overflow-y-auto py-4">
+            <ul class="space-y-1 px-3">
+                <li class="admin-only">
+                    <button onclick="showPage('dashboard')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition-colors text-slate-300 hover:text-white" id="nav-dashboard">
+                        <i class="fa-solid fa-chart-pie w-5"></i> Dashboard
+                    </button>
+                </li>
+                <li class="admin-only">
+                    <button onclick="showPage('assets')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition-colors text-slate-300 hover:text-white" id="nav-assets">
+                        <i class="fa-solid fa-box w-5"></i> Data Aset
+                    </button>
+                </li>
+                <li class="admin-only">
+                    <button onclick="showPage('mutation')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition-colors text-slate-300 hover:text-white" id="nav-mutation">
+                        <i class="fa-solid fa-truck-moving w-5"></i> Mutasi HUB
+                    </button>
+                </li>
+                <li class="staff-allowed">
+                    <button onclick="showPage('opname')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition-colors text-slate-300 hover:text-white" id="nav-opname">
+                        <i class="fa-solid fa-barcode w-5"></i> Stock Opname
+                    </button>
+                </li>
+                <li class="staff-allowed">
+                    <button onclick="showPage('history')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition-colors text-slate-300 hover:text-white" id="nav-history">
+                        <i class="fa-solid fa-clock-rotate-left w-5"></i> Riwayat
+                    </button>
+                </li>
+                <li class="admin-only mt-4 border-t border-slate-700 pt-4">
+                    <button onclick="showPage('settings')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition-colors text-slate-300 hover:text-white" id="nav-settings">
+                        <i class="fa-solid fa-users-gear w-5"></i> Pengaturan
+                    </button>
+                </li>
+            </ul>
+        </nav>
+
+        <div class="p-4 border-t border-slate-700">
+             <button onclick="logout()" class="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm rounded transition-colors">
+                <i class="fa-solid fa-right-from-bracket"></i> Keluar
+            </button>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 flex flex-col h-full overflow-hidden relative hidden" id="main-content">
+        <!-- Header -->
+        <header class="h-16 bg-white shadow-sm border-b border-gray-200 flex items-center justify-between px-6 z-10">
+            <h2 id="page-title" class="text-xl font-bold text-slate-800">Dashboard</h2>
+            <div class="flex items-center gap-4">
+                <span class="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full font-bold" id="header-username">
+                    <i class="fa-solid fa-user mr-2"></i> User
+                </span>
+            </div>
+        </header>
+
+        <!-- Content Area -->
+        <div class="flex-1 overflow-y-auto p-6 bg-gray-50 relative" id="content-area">
+            
+            <!-- DASHBOARD VIEW -->
+            <div id="view-dashboard" class="page-view space-y-6">
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 border-l-4 border-l-blue-500">
+                        <p class="text-gray-500 text-sm font-medium">Total Aset</p>
+                        <h3 class="text-3xl font-bold text-gray-800 mt-1" id="dash-total">...</h3>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 border-l-4 border-l-green-500">
+                        <p class="text-gray-500 text-sm font-medium">Komposisi (IT/Non-IT)</p>
+                        <h3 class="text-xl font-bold text-gray-800 mt-1" id="dash-composition">...</h3>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 border-l-4 border-l-indigo-500">
+                        <p class="text-gray-500 text-sm font-medium">Total HUB</p>
+                        <h3 class="text-3xl font-bold text-gray-800 mt-1" id="dash-hubs">...</h3>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 border-l-4 border-l-orange-500">
+                        <p class="text-gray-500 text-sm font-medium">Aset Rusak</p>
+                        <h3 class="text-3xl font-bold text-gray-800 mt-1" id="dash-damaged">...</h3>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ASSETS VIEW -->
+            <div id="view-assets" class="page-view hidden space-y-4">
+                <div class="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-lg shadow-sm">
+                    <div class="relative w-full md:w-96">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400"></i>
+                        <input type="text" id="asset-search" onkeyup="renderAssetsTable()" placeholder="Cari S/N, ECM, NS, Nama..." class="w-full pl-10 pr-4 py-2 border rounded-lg">
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="file" id="csv-file-input" accept=".csv" class="hidden" onchange="handleCSVUpload(event)">
+                        <button onclick="document.getElementById('csv-file-input').click()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+                            <i class="fa-solid fa-file-csv"></i> Import CSV
+                        </button>
+                        <button onclick="openModal('modal-add-asset')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+                            <i class="fa-solid fa-plus"></i> Tambah Aset
+                        </button>
+                    </div>
+                </div>
+                <div class="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200 overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3">S/N</th>
+                                <th class="px-4 py-3">NUMBER ECM</th>
+                                <th class="px-4 py-3">NUMBER NS</th>
+                                <th class="px-4 py-3">Nama Barang</th>
+                                <th class="px-4 py-3">Kategori</th>
+                                <th class="px-4 py-3">HUB & Lokasi</th>
+                                <th class="px-4 py-3">Kondisi</th>
+                                <th class="px-4 py-3">Gunakan/Tidak</th>
+                                <th class="px-4 py-3">Terakhir SO</th>
+                                <th class="px-4 py-3 text-right">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="assets-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- MUTATION VIEW -->
+            <div id="view-mutation" class="page-view hidden space-y-6">
+                <div class="bg-white p-6 rounded-xl shadow-sm max-w-2xl mx-auto border border-gray-200">
+                    <h3 class="text-lg font-bold mb-4">Form Mutasi Antar HUB</h3>
+                    <form onsubmit="handleMutation(event)" class="space-y-4">
+                        <select id="mutation-asset-id" class="w-full border rounded-lg p-2.5" required></select>
+                        <div class="grid grid-cols-2 gap-4">
+                            <input type="text" id="mutation-current-hub" class="w-full bg-gray-100 border rounded p-2" readonly placeholder="HUB Asal">
+                            <input type="text" id="mutation-current-loc" class="w-full bg-gray-100 border rounded p-2" readonly placeholder="Lokasi Asal">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                             <select id="mutation-new-hub" class="w-full border rounded-lg p-2.5 hub-selector" required>
+                                <option value="">-- HUB Tujuan --</option>
+                                <!-- Dynamic Options -->
+                            </select>
+                            <input type="text" id="mutation-new-loc" placeholder="Lokasi Baru" class="w-full border rounded-lg p-2" required>
+                        </div>
+                        <textarea id="mutation-reason" rows="2" class="w-full border rounded-lg p-2" placeholder="Alasan Mutasi"></textarea>
+                        <button type="submit" class="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 rounded-lg">Eksekusi Mutasi</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- OPNAME VIEW -->
+            <div id="view-opname" class="page-view hidden space-y-4">
+                <div class="flex flex-col md:flex-row gap-6 h-[calc(100vh-140px)]">
+                    <div class="w-full md:w-2/5 flex flex-col gap-4 overflow-y-auto">
+                        <div class="bg-white p-6 rounded-xl shadow-lg border border-blue-200">
+                            <h3 class="font-bold text-xl text-blue-900 mb-4 flex items-center justify-between">
+                                <span><i class="fa-solid fa-clipboard-check"></i> Stock Opname</span>
+                                <button onclick="toggleCamera()" class="text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded transition">
+                                    <i class="fa-solid fa-camera"></i> Scan Kamera
+                                </button>
+                            </h3>
+                            
+                            <!-- CAMERA SCANNER -->
+                            <div id="reader" class="hidden w-full mb-4 border-2 border-gray-300 rounded-lg overflow-hidden"></div>
+
+                            <div class="space-y-4 mb-6">
+                                <label class="text-xs text-gray-500 font-bold block mb-1">Input Manual / Barcode Scanner Alat</label>
+                                <input type="text" id="opname-input" class="w-full border-2 border-blue-300 rounded-lg p-2.5 font-mono text-center text-lg" placeholder="Ketik S/N / ECM / NS..." autocomplete="off">
+                            </div>
+
+                            <div id="opname-form-details" class="hidden border-t pt-4 space-y-4 modal-animate">
+                                <input type="hidden" id="op-current-id">
+                                <div class="p-3 bg-blue-50 rounded-lg"><h4 class="font-bold text-blue-900" id="op-name">Asset Name</h4></div>
+                                
+                                <div class="flex gap-2">
+                                    <label class="flex-1 cursor-pointer">
+                                        <input type="radio" name="op-condition" value="Baik" class="peer sr-only" checked>
+                                        <div class="p-2 border rounded text-center peer-checked:bg-green-100 peer-checked:border-green-500 font-bold text-sm">Baik</div>
+                                    </label>
+                                    <label class="flex-1 cursor-pointer">
+                                        <input type="radio" name="op-condition" value="Rusak" class="peer sr-only">
+                                        <div class="p-2 border rounded text-center peer-checked:bg-red-100 peer-checked:border-red-500 font-bold text-sm">Rusak</div>
+                                    </label>
+                                </div>
+                                <div class="flex gap-2">
+                                    <label class="flex-1 cursor-pointer">
+                                        <input type="radio" name="op-usage" value="Digunakan" class="peer sr-only" checked>
+                                        <div class="p-2 border rounded text-center peer-checked:bg-blue-100 peer-checked:border-blue-500 font-bold text-sm">Dipakai</div>
+                                    </label>
+                                    <label class="flex-1 cursor-pointer">
+                                        <input type="radio" name="op-usage" value="Idle" class="peer sr-only">
+                                        <div class="p-2 border rounded text-center peer-checked:bg-gray-200 peer-checked:border-gray-500 font-bold text-sm">Gudang</div>
+                                    </label>
+                                </div>
+                                <button onclick="saveOpnameEntry()" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg">Simpan</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="w-full md:w-3/5 flex flex-col bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                        <div class="p-4 border-b bg-gray-50 flex justify-between">
+                            <h3 class="font-bold">Sesi Ini</h3>
+                            <button onclick="finishOpnameSession()" class="text-blue-600 font-bold text-sm">Simpan Sesi</button>
+                        </div>
+                        <div class="flex-1 overflow-y-auto"><table class="w-full text-sm text-left"><tbody id="opname-session-body"></tbody></table></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HISTORY VIEW -->
+            <div id="view-history" class="page-view hidden space-y-4">
+                <div class="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
+                    <div class="p-4 border-b bg-gray-50"><h3 class="font-bold text-gray-700">Audit Trail</h3></div>
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-100">
+                            <tr>
+                                <th class="px-4 py-3">Waktu</th>
+                                <th class="px-4 py-3">User</th>
+                                <th class="px-4 py-3">Aksi</th>
+                                <th class="px-4 py-3">Detail</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- SETTINGS VIEW (ADMIN ONLY) -->
+            <div id="view-settings" class="page-view hidden space-y-6">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 space-y-10">
+                    
+                    <!-- 1. HUB MANAGEMENT -->
+                    <div class="border-b pb-8">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">Manajemen HUB</h3>
+                        <form onsubmit="handleAddHub(event)" class="flex gap-4 mb-4">
+                            <input type="text" id="new-hub-name" placeholder="Nama HUB (misal: HUB Bali)" class="flex-1 border rounded p-2" required>
+                            <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 font-bold">Tambah</button>
+                        </form>
+                        <div class="bg-gray-50 rounded border p-4 max-h-40 overflow-y-auto">
+                            <ul id="hubs-list" class="space-y-2"></ul>
+                        </div>
+                    </div>
+
+                    <!-- 2. STAFF MANAGEMENT -->
+                    <div class="border-b pb-8">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">Manajemen Karyawan</h3>
+                        <form onsubmit="handleAddUser(event)" class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6 items-end">
+                            <div class="md:col-span-1"><label class="text-xs font-bold">NIK</label><input type="text" id="new-user-nik" class="w-full border rounded p-2" required></div>
+                            <div class="md:col-span-2"><label class="text-xs font-bold">Nama</label><input type="text" id="new-user-name" class="w-full border rounded p-2" required></div>
+                            <div class="md:col-span-1"><label class="text-xs font-bold">HUB</label><select id="new-user-hub" class="w-full border rounded p-2 hub-selector" required><option value="">-- Pilih --</option></select></div>
+                            <div class="md:col-span-1"><button type="submit" class="w-full bg-green-600 text-white p-2 rounded hover:bg-green-700 font-bold h-[42px]">Tambah</button></div>
+                        </form>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left border">
+                                <thead class="bg-gray-100 text-gray-700 uppercase text-xs"><tr><th class="px-4 py-2">NIK</th><th class="px-4 py-2">Nama</th><th class="px-4 py-2">HUB</th><th class="px-4 py-2">Role</th><th class="px-4 py-2 text-right">Aksi</th></tr></thead>
+                                <tbody id="users-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- 3. ADMIN PASSWORD -->
+                    <div class="border-b pb-8">
+                        <h3 class="text-lg font-bold text-gray-800 mb-2">Ganti Password Admin</h3>
+                        <form onsubmit="updateAdminPassword(event)" class="flex gap-4 max-w-md">
+                            <input type="password" name="newPass" placeholder="Password Baru" class="flex-1 border rounded p-2" required>
+                            <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 font-bold">Simpan</button>
+                        </form>
+                    </div>
+
+                    <!-- 4. DANGER ZONE (MASS DELETE) -->
+                    <div class="bg-red-50 border border-red-200 rounded-xl p-6">
+                        <h3 class="text-lg font-bold text-red-700 mb-2"><i class="fa-solid fa-triangle-exclamation mr-2"></i> Zone Bahaya: Hapus Data Massal</h3>
+                        <p class="text-sm text-red-600 mb-4">Fitur ini akan menghapus data secara permanen. Hati-hati!</p>
+                        
+                        <div class="flex gap-4">
+                            <select id="delete-target" class="flex-1 border border-red-300 rounded p-2 text-red-900 bg-white">
+                                <option value="">-- Pilih Data yang akan Dihapus --</option>
+                                <option value="assets">Semua Data Aset</option>
+                                <option value="historyLog">Semua Riwayat (History)</option>
+                                <option value="users">Semua Data Karyawan (Kecuali Admin)</option>
+                                <option value="hubs">Semua Data HUB</option>
+                            </select>
+                            <button onclick="handleDeleteData()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded font-bold shadow-md">
+                                Hapus Data Terpilih
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- MODAL: ADD ASSET -->
+    <div id="modal-add-asset" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden p-6 modal-animate">
+            <h3 class="font-bold text-lg mb-4">Tambah Aset</h3>
+            <form onsubmit="saveNewAsset(event)" class="space-y-3">
+                <div class="grid grid-cols-3 gap-2">
+                    <div class="col-span-1">
+                        <label class="text-xs font-bold text-gray-500">S/N</label>
+                        <input type="text" name="sn" placeholder="Serial Number" class="border p-2 rounded w-full" required>
+                    </div>
+                    <div class="col-span-1">
+                        <label class="text-xs font-bold text-gray-500">NUMBER ECM</label>
+                        <input type="text" name="id" placeholder="ID (ECM)" class="border p-2 rounded w-full" required>
+                    </div>
+                    <div class="col-span-1">
+                        <label class="text-xs font-bold text-gray-500">NUMBER NS</label>
+                        <input type="text" name="ns" placeholder="NS" class="border p-2 rounded w-full">
+                    </div>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-500">Nama Barang</label>
+                    <input type="text" name="name" placeholder="Nama Barang" class="border p-2 rounded w-full" required>
+                </div>
+                <!-- JENIS BARANG REMOVED -->
+                <div>
+                    <label class="text-xs font-bold text-gray-500">Kategori Aset (IT / Non-IT)</label>
+                    <select name="group" class="border p-2 rounded w-full font-bold">
+                        <option value="IT">IT</option>
+                        <option value="Non IT">Non IT</option>
+                    </select>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-xs font-bold text-gray-500">HUB</label>
+                        <select name="hub" class="border p-2 rounded w-full hub-selector"><option value="">-- Pilih HUB --</option></select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-500">Lokasi</label>
+                        <input type="text" name="location" placeholder="Lokasi Detail" class="border p-2 rounded w-full" required>
+                    </div>
+                </div>
+                <div class="flex gap-2 mt-4">
+                    <button type="button" onclick="closeModal('modal-add-asset')" class="flex-1 bg-gray-200 py-2 rounded">Batal</button>
+                    <button type="submit" class="flex-1 bg-blue-600 text-white py-2 rounded">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: EDIT USER -->
+    <div id="modal-edit-user" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden p-6 modal-animate">
+            <h3 class="font-bold text-lg mb-4 text-gray-800">Edit Data Karyawan</h3>
+            <form onsubmit="updateUser(event)" class="space-y-3">
+                <input type="hidden" name="nik" id="edit-user-nik-hidden">
+                <div><label class="block text-xs font-bold text-gray-500 mb-1">NIK</label><input type="text" id="edit-user-nik-display" class="w-full bg-gray-100 border rounded p-2 font-mono" readonly></div>
+                <div><label class="block text-xs font-bold text-gray-500 mb-1">Nama</label><input type="text" name="name" id="edit-user-name" class="w-full border rounded p-2" required></div>
+                <div><label class="block text-xs font-bold text-gray-500 mb-1">HUB</label><select name="hub" id="edit-user-hub" class="w-full border rounded p-2 hub-selector" required><option value="">-- Pilih --</option></select></div>
+                <div class="flex gap-2 mt-4"><button type="button" onclick="closeModal('modal-edit-user')" class="flex-1 bg-gray-200 py-2 rounded">Batal</button><button type="submit" class="flex-1 bg-blue-600 text-white py-2 rounded">Simpan</button></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: ALERT -->
+    <div id="modal-alert" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl p-6 text-center max-w-sm modal-animate">
+            <p id="alert-message" class="mb-4 font-bold"></p>
+            <button onclick="closeModal('modal-alert')" class="bg-gray-800 text-white px-6 py-2 rounded">OK</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, collection, doc, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, writeBatch, getDocs, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDXOfZbVDqtfGB0abQkTeILo-XC6a9xxKI",
+            authDomain: "hub-dashboard-92428.firebaseapp.com",
+            projectId: "hub-dashboard-92428",
+            storageBucket: "hub-dashboard-92428.firebasestorage.app",
+            messagingSenderId: "827243064075",
+            appId: "1:827243064075:web:02ba4abd65dfa99d33d00e"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        const APP_ID = 'asset-mgr-v8';
+        const ASSETS_PATH = `artifacts/${APP_ID}/public/data/assets`;
+        const HISTORY_PATH = `artifacts/${APP_ID}/public/data/historyLog`;
+        const USERS_PATH = `artifacts/${APP_ID}/public/data/users`;
+        const HUBS_PATH = `artifacts/${APP_ID}/public/data/hubs`;
+
+        // --- HELPER: SANITIZE ID (Replace / with -) ---
+        const sanitizeId = (id) => id.replace(/\//g, '-');
+
+        // GLOBAL STATE
+        let assets = [];
+        let historyLog = [];
+        let users = []; 
+        let hubs = []; 
+        let opnameSession = [];
+        let currentUser = null; 
+        
+        // CAMERA SCANNER VAR
+        let html5QrCode;
+
+        // --- AUTH & INIT ---
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                console.log("System Connected");
+                initRealtimeListeners();
+            } else {
+                signInAnonymously(auth);
+            }
+        });
+
+        function initRealtimeListeners() {
+            // Assets
+            onSnapshot(collection(db, ASSETS_PATH), (snap) => {
+                assets = snap.docs.map(doc => ({...doc.data(), _docId: doc.id}));
+                if(currentUser) window.renderAssetsTable(); 
+                if(currentUser && currentUser.role === 'admin') window.renderDashboard();
+            });
+
+            // History
+            onSnapshot(collection(db, HISTORY_PATH), (snap) => {
+                historyLog = snap.docs.map(doc => doc.data()).sort((a,b) => new Date(b.date) - new Date(a.date));
+                if(currentUser) window.renderHistory();
+            });
+
+            // Users
+            onSnapshot(collection(db, USERS_PATH), (snap) => {
+                users = snap.docs.map(doc => doc.data());
+                if(users.length === 0) setDoc(doc(db, USERS_PATH, 'admin'), { nik: 'admin', name: 'Super Admin', role: 'admin', password: 'admin123' });
+                if(currentUser && currentUser.role === 'admin') window.renderSettings();
+            });
+
+            // Hubs
+            onSnapshot(collection(db, HUBS_PATH), (snap) => {
+                hubs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                updateSelects('.hub-selector', hubs, 'name');
+                if(currentUser && currentUser.role === 'admin') window.renderHubSettingsTable();
+            });
+        }
+
+        // --- CAMERA SCANNER LOGIC ---
+        window.toggleCamera = async function() {
+            const readerDiv = document.getElementById('reader');
+            if(html5QrCode) {
+                try {
+                    await html5QrCode.stop();
+                    html5QrCode.clear();
+                    html5QrCode = null;
+                    readerDiv.classList.add('hidden');
+                } catch(e) { console.error("Stop failed", e); }
+                return;
+            }
+            readerDiv.classList.remove('hidden');
+            html5QrCode = new Html5Qrcode("reader");
+            try {
+                await html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } }, (decodedText) => {
+                    document.getElementById('opname-input').value = decodedText;
+                    window.handleOpnameScan(decodedText);
+                    html5QrCode.stop().then(() => {
+                        html5QrCode.clear();
+                        html5QrCode = null;
+                        readerDiv.classList.add('hidden');
+                    });
+                });
+            } catch(err) { alert("Gagal membuka kamera: " + err); readerDiv.classList.add('hidden'); }
+        }
+
+        // --- CSV IMPORT ---
+        window.handleCSVUpload = function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async function(event) {
+                const text = event.target.result;
+                const rows = text.split('\n').map(r => r.trim()).filter(r => r);
+                
+                let successCount = 0;
+                let skipCount = 0;
+                let batch = writeBatch(db); 
+                let batchCount = 0;
+
+                for (let i = 1; i < rows.length; i++) { 
+                    const cols = rows[i].split(',');
+                    if (cols.length < 4) continue; 
+                    const [sn, idRaw, ns, name, group, hub, loc] = cols.map(c => c ? c.replace(/"/g, '').trim() : '');
+                    if (!idRaw) continue;
+                    const docId = sanitizeId(idRaw);
+                    if (assets.find(a => a.id === idRaw)) { skipCount++; continue; }
+
+                    batch.set(doc(db, ASSETS_PATH, docId), {
+                        id: idRaw, sn, ns, name, group: (group === 'IT' || group === 'Non IT') ? group : 'Non IT',
+                        hub: hub || 'Unknown', location: loc || '-', status: 'Baik', usage: 'Digunakan', lastOpname: null
+                    });
+                    
+                    batchCount++; successCount++;
+                    if (batchCount === 400) { await batch.commit(); batch = writeBatch(db); batchCount = 0; }
+                }
+                if (batchCount > 0) await batch.commit();
+                await addLogToFirestore('Import CSV', 'BATCH', 'System', `Imported ${successCount}. Skipped ${skipCount}.`);
+                alert(`Import Selesai!\nBerhasil: ${successCount}\nDilewati: ${skipCount}`);
+                e.target.value = ''; 
+            };
+            reader.readAsText(file);
+        }
+
+        // --- HUB MANAGEMENT ---
+        window.handleAddHub = async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('new-hub-name').value;
+            const id = sanitizeId(name.replace(/\s+/g, '-').toLowerCase());
+            await setDoc(doc(db, HUBS_PATH, id), { name });
+            document.getElementById('new-hub-name').value = '';
+        }
+
+        window.deleteDocItem = async (coll, id) => {
+            if(confirm('Hapus item ini?')) await deleteDoc(doc(db, coll, id));
+        }
+
+        window.renderHubSettingsTable = function() {
+            const list = document.getElementById('hubs-list');
+            list.innerHTML = hubs.map(h => `<li class="flex justify-between p-2 bg-white rounded border"><span>${h.name}</span><button onclick="deleteDocItem(HUBS_PATH, '${h.id}')" class="text-red-500"><i class="fa-solid fa-trash"></i></button></li>`).join('');
+        }
+
+        function updateSelects(selector, data, field) {
+            const els = document.querySelectorAll(selector);
+            const html = `<option value="">-- Pilih --</option>` + data.map(d => `<option value="${d[field]}">${d[field]}</option>`).join('');
+            els.forEach(el => { const val = el.value; el.innerHTML = html; if(val) el.value = val; });
+        }
+
+        // --- GLOBAL HELPERS ---
+        window.HUBS_PATH = HUBS_PATH;
+
+        // --- MASS DELETE LOGIC ---
+        window.handleDeleteData = async () => {
+            const target = document.getElementById('delete-target').value;
+            if(!target) return alert('Pilih data yang akan dihapus!');
+            
+            let path = '';
+            let confirmMsg = '';
+
+            if(target === 'assets') { path = ASSETS_PATH; confirmMsg = 'SEMUA DATA ASET'; }
+            else if(target === 'historyLog') { path = HISTORY_PATH; confirmMsg = 'SEMUA RIWAYAT'; }
+            else if(target === 'users') { path = USERS_PATH; confirmMsg = 'SEMUA KARYAWAN (Kecuali Admin)'; }
+            else if(target === 'hubs') { path = HUBS_PATH; confirmMsg = 'SEMUA DATA HUB'; }
+
+            if(confirm(`PERINGATAN: Anda akan menghapus ${confirmMsg}. Tindakan ini tidak dapat dibatalkan.\n\nLanjutkan?`)) {
+                if(confirm(`YAKIN? Ketik OK untuk konfirmasi.`)) {
+                    await deleteCollection(path, target === 'users'); // Pass true if deleting users to protect admin
+                    alert('Penghapusan data berhasil.');
+                }
+            }
+        }
+
+        async function deleteCollection(path, protectAdmin = false) {
+            const q = query(collection(db, path));
+            const snapshot = await getDocs(q);
+            let batch = writeBatch(db);
+            let count = 0;
+
+            snapshot.docs.forEach((docSnap) => {
+                // Protect 'admin' user doc if deleting users
+                if (protectAdmin && docSnap.id === 'admin') return;
+
+                batch.delete(docSnap.ref);
+                count++;
+                if (count >= 400) {
+                    batch.commit();
+                    batch = writeBatch(db);
+                    count = 0;
+                }
+            });
+
+            if (count > 0) await batch.commit();
+        }
+
+        // --- LOGIN ---
+        window.switchLoginTab = (t) => {
+            document.getElementById('tab-admin').className = t==='admin'?"flex-1 pb-2 border-b-2 border-blue-600 text-blue-600 font-bold":"flex-1 pb-2 border-b-2 border-transparent text-gray-400";
+            document.getElementById('tab-staff').className = t==='staff'?"flex-1 pb-2 border-b-2 border-green-600 text-green-600 font-bold":"flex-1 pb-2 border-b-2 border-transparent text-gray-400";
+            document.getElementById('form-login-admin').classList.toggle('hidden', t!=='admin');
+            document.getElementById('form-login-staff').classList.toggle('hidden', t!=='staff');
+        }
+
+        window.handleLogin = async (e, type) => {
+            e.preventDefault();
+            if(type === 'admin') {
+                const pass = document.getElementById('login-password').value;
+                const u = users.find(u => u.nik === 'admin');
+                if(u && u.password === pass) startSession(u);
+                else alert('Password Salah');
+            } else {
+                const nik = document.getElementById('login-nik').value;
+                const u = users.find(u => u.nik === nik);
+                if(u) startSession(u);
+                else alert('NIK Tidak Ditemukan');
+            }
+        }
+
+        function startSession(u) {
+            currentUser = u;
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('sidebar').classList.remove('hidden');
+            document.getElementById('main-content').classList.remove('hidden');
+            document.getElementById('header-username').innerHTML = `<i class="fa-solid fa-user mr-2"></i> ${u.name} ${u.hub ? '('+u.hub+')' : ''}`;
+            document.getElementById('user-role-display').innerText = u.role === 'admin' ? 'Admin Mode' : 'Staff Mode';
+            
+            if(u.role === 'admin') {
+                document.querySelectorAll('.admin-only').forEach(e=>e.style.display='block');
+                showPage('dashboard');
+                updateSelects('.hub-selector', hubs, 'name');
+            } else {
+                document.querySelectorAll('.admin-only').forEach(e=>e.style.display='none');
+                showPage('opname');
+            }
+            document.getElementById('form-login-admin').reset();
+            document.getElementById('form-login-staff').reset();
+        }
+
+        window.logout = () => { if(confirm('Logout?')) window.location.reload(); }
+
+        // --- USER SETTINGS ---
+        window.handleAddUser = async (e) => {
+            e.preventDefault();
+            const f = e.target;
+            const safeNik = sanitizeId(f.querySelector('#new-user-nik').value);
+            if(users.find(u=>u.nik===f.querySelector('#new-user-nik').value)) return alert('NIK Exist');
+            await setDoc(doc(db, USERS_PATH, safeNik), {
+                nik: f.querySelector('#new-user-nik').value,
+                name: f.querySelector('#new-user-name').value,
+                hub: f.querySelector('#new-user-hub').value,
+                role: 'staff'
+            });
+            f.reset();
+        }
+        
+        window.updateAdminPassword = async (e) => {
+            e.preventDefault();
+            await updateDoc(doc(db, USERS_PATH, 'admin'), { password: e.target.newPass.value });
+            alert('Password updated'); e.target.reset();
+        }
+
+        window.openEditUserModal = (nik) => {
+            const u = users.find(x=>x.nik===nik);
+            document.getElementById('edit-user-nik-hidden').value = u.nik;
+            document.getElementById('edit-user-nik-display').value = u.nik;
+            document.getElementById('edit-user-name').value = u.name;
+            document.getElementById('edit-user-hub').value = u.hub || '';
+            openModal('modal-edit-user');
+        }
+
+        window.updateUser = async (e) => {
+            e.preventDefault();
+            const safeNik = sanitizeId(e.target.nik.value);
+            await updateDoc(doc(db, USERS_PATH, safeNik), { name: e.target.name.value, hub: e.target.hub.value });
+            closeModal('modal-edit-user');
+        }
+
+        window.deleteUser = async (nik) => { if(confirm('Hapus?')) await deleteDoc(doc(db, USERS_PATH, sanitizeId(nik))); }
+
+        window.renderSettings = function() {
+            window.renderHubSettingsTable(); 
+            document.getElementById('users-table-body').innerHTML = users.map(u => `
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="px-4 py-2 font-mono">${u.nik}</td><td>${u.name}</td><td>${u.hub||'-'}</td><td>${u.role}</td>
+                    <td class="text-right px-4">
+                        ${u.role!=='admin'?`<button onclick="openEditUserModal('${u.nik}')" class="text-blue-500 mr-2"><i class="fa-solid fa-pen"></i></button><button onclick="deleteUser('${u.nik}')" class="text-red-500"><i class="fa-solid fa-trash"></i></button>`:'-'}
+                    </td>
+                </tr>`).join('');
+        }
+
+        // --- NAVIGATION ---
+        window.showPage = (id) => {
+            if(currentUser.role!=='admin' && ['dashboard','assets','mutation','settings'].includes(id)) return alert('Access Denied');
+            document.querySelectorAll('.page-view').forEach(e=>e.classList.add('hidden'));
+            document.querySelectorAll('.nav-item').forEach(e=> { e.classList.remove('bg-blue-600','text-white'); e.classList.add('text-slate-300'); });
+            document.getElementById('view-'+id).classList.remove('hidden');
+            document.getElementById('nav-'+id).classList.add('bg-blue-600','text-white');
+            document.getElementById('page-title').innerText = id.toUpperCase();
+            
+            if(id==='assets') window.renderAssetsTable();
+            if(id==='dashboard') window.renderDashboard();
+            if(id==='mutation') window.renderMutationForm();
+            if(id==='settings') window.renderSettings();
+            if(id==='history') window.renderHistory();
+        }
+
+        // --- CORE ASSET LOGIC ---
+        window.saveNewAsset = async (e) => {
+            e.preventDefault();
+            const f = e.target;
+            const idRaw = f.id.value;
+            const docId = sanitizeId(idRaw); 
+
+            if(assets.find(a=>a.id===idRaw)) return alert('ID Exists');
+            
+            await setDoc(doc(db, ASSETS_PATH, docId), {
+                id: idRaw, sn: f.sn.value, ns: f.ns.value, name: f.name.value,
+                group: f.group.value, hub: f.hub.value, location: f.location.value,
+                status: 'Baik', usage: 'Digunakan', lastOpname: null
+            });
+            await addLogToFirestore('Add', idRaw, f.name.value, 'New Asset');
+            closeModal('modal-add-asset'); f.reset();
+        }
+
+        window.handleMutation = async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('mutation-asset-id').value; 
+            const hub = document.getElementById('mutation-new-hub').value;
+            const loc = document.getElementById('mutation-new-loc').value;
+            const a = assets.find(x=>x.id===id);
+            
+            await updateDoc(doc(db, ASSETS_PATH, sanitizeId(id)), { hub, location: loc });
+            await addLogToFirestore('Mutasi', id, a.name, `To ${hub} (${loc})`);
+            e.target.reset(); alert('Mutasi Sukses');
+        }
+
+        window.handleOpnameScan = (val) => {
+            if(!val) return;
+            const a = assets.find(x => x.id.toLowerCase()===val.toLowerCase() || (x.sn&&x.sn.toLowerCase()===val.toLowerCase()) || (x.ns&&x.ns.toLowerCase()===val.toLowerCase()));
+            if(a) {
+                document.getElementById('opname-form-details').classList.remove('hidden');
+                document.getElementById('op-current-id').value = a.id; 
+                document.getElementById('op-name').innerText = a.name;
+            } else alert('Not Found');
+        }
+
+        window.saveOpnameEntry = async () => {
+            const id = document.getElementById('op-current-id').value; 
+            const cond = document.querySelector('input[name="op-condition"]:checked').value;
+            const use = document.querySelector('input[name="op-usage"]:checked').value;
+            
+            await updateDoc(doc(db, ASSETS_PATH, sanitizeId(id)), { status: cond, usage: use, lastOpname: new Date().toISOString() });
+            await addLogToFirestore('Opname', id, document.getElementById('op-name').innerText, `Cond: ${cond}, Use: ${use}`);
+            
+            const row = `<tr><td class="px-4 py-2 text-xs">${new Date().toLocaleTimeString()}</td><td>${document.getElementById('op-name').innerText}</td><td>${cond}</td><td><i class="fa-solid fa-check text-green-500"></i></td></tr>`;
+            document.getElementById('opname-session-body').innerHTML = row + document.getElementById('opname-session-body').innerHTML;
+            document.getElementById('opname-form-details').classList.add('hidden');
+            document.getElementById('opname-input').value = ''; document.getElementById('opname-input').focus();
+        }
+
+        window.finishOpnameSession = async () => {
+            if(confirm('Finish Session?')) {
+                await addLogToFirestore('Report', 'BATCH', 'Session End', `By ${currentUser.name}`);
+                document.getElementById('opname-session-body').innerHTML = '';
+            }
+        }
+
+        // --- RENDERERS ---
+        window.renderAssetsTable = function() {
+            const s = document.getElementById('asset-search').value.toLowerCase();
+            document.getElementById('assets-table-body').innerHTML = assets.filter(a => 
+                (a.name && a.name.toLowerCase().includes(s)) || (a.id && a.id.toLowerCase().includes(s)) || (a.sn && a.sn.toLowerCase().includes(s)) || (a.ns && a.ns.toLowerCase().includes(s))
+            ).map(a => `<tr class="border-b hover:bg-gray-50">
+                <td class="px-4 py-2 font-mono text-xs">${a.sn||'-'}</td>
+                <td class="px-4 py-2 font-bold text-blue-900">${a.id}</td>
+                <td class="px-4 py-2 font-mono text-xs">${a.ns||'-'}</td>
+                <td class="px-4 py-2 font-medium">${a.name}</td>
+                <td class="px-4 py-2 text-xs font-bold text-gray-500">${a.group||'-'}</td>
+                <td class="px-4 py-2 text-sm">${a.hub}<br><span class="text-xs text-gray-500">${a.location}</span></td>
+                <td class="px-4 py-2 text-xs font-bold ${a.status==='Baik'?'text-green-600':'text-red-600'}">${a.status}</td>
+                <td class="px-4 py-2 text-xs">${a.usage}</td>
+                <td class="px-4 py-2 text-xs text-gray-500">${a.lastOpname?new Date(a.lastOpname).toLocaleDateString():'-'}</td>
+                <td class="px-4 py-2 text-right"><button onclick="deleteAsset('${a.id}')" class="text-red-500"><i class="fa-solid fa-trash"></i></button></td>
+            </tr>`).join('');
+        }
+
+        window.renderDashboard = function() {
+            document.getElementById('dash-total').innerText = assets.length;
+            const it = assets.filter(a=>a.group==='IT').length;
+            document.getElementById('dash-composition').innerText = `${it} IT / ${assets.length-it} Non`;
+            document.getElementById('dash-hubs').innerText = [...new Set(assets.map(a=>a.hub))].length;
+            document.getElementById('dash-damaged').innerText = assets.filter(a=>a.status!=='Baik').length;
+        }
+
+        window.renderHistory = function() {
+            document.getElementById('history-table-body').innerHTML = historyLog.map(l => 
+                `<tr class="border-b text-sm"><td class="px-4 py-2">${new Date(l.date).toLocaleString()}</td><td>${l.actor||'-'}</td><td class="font-bold">${l.action}</td><td>${l.assetName} - ${l.detail}</td></tr>`
+            ).join('');
+        }
+
+        window.renderMutationForm = function() {
+            const sel = document.getElementById('mutation-asset-id');
+            const cur = sel.value;
+            sel.innerHTML = '<option value="">-- Pilih --</option>' + assets.map(a => `<option value="${a.id}">${a.id} - ${a.name}</option>`).join('');
+            sel.value = cur;
+            sel.onchange = (e) => {
+                const a = assets.find(x=>x.id===e.target.value);
+                if(a) { document.getElementById('mutation-current-hub').value=a.hub; document.getElementById('mutation-current-loc').value=a.location; }
+            }
+        }
+
+        async function addLogToFirestore(action, assetId, assetName, detail) {
+            try {
+                await addDoc(collection(db, HISTORY_PATH), {
+                    date: new Date().toISOString(), action, assetId, assetName, detail,
+                    actor: currentUser ? `${currentUser.name} (${currentUser.nik})` : 'System'
+                });
+            } catch(e) {console.error(e)}
+        }
+
+        // Global exposed functions
+        window.openModal = (id) => document.getElementById(id).classList.remove('hidden');
+        window.closeModal = (id) => document.getElementById(id).classList.add('hidden');
+        // Delete Asset with sanitize
+        window.deleteAsset = async (id) => { if(confirm('Delete?')) await deleteDoc(doc(db, ASSETS_PATH, sanitizeId(id))); }
+        
+        // Listener for opname input
+        document.getElementById('opname-input').addEventListener('keypress', function(e) { if(e.key==='Enter') window.handleOpnameScan(this.value); });
+
+    </script>
+</body>
+</html>
