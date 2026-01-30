@@ -3,86 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Manajemen Aset V13 (Small Label & SO History)</title>
+    <title>Sistem Manajemen Aset V14 (Responsive UI)</title>
     
-    <!-- Tailwind CSS (Styling) -->
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: '#2563eb', // blue-600
+                        secondary: '#1e293b', // slate-800
+                    }
+                }
+            }
+        }
+    </script>
     
-    <!-- FontAwesome (Icons) -->
+    <!-- Icons & Libraries -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- JsBarcode (Barcode Generator) -->
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.0/dist/JsBarcode.all.min.js"></script>
-
-    <!-- Html5-Qrcode (Camera Scanner) -->
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
     <style>
         /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-        /* General Print Styling */
+        /* Print Styling */
         @media print {
             body > * { display: none !important; }
-            
             .print-visible { 
                 display: block !important; 
-                position: absolute; 
-                left: 0; 
-                top: 0; 
-                width: 100%; 
-                background: white;
-                z-index: 9999;
-                padding: 0;
-                margin: 0;
+                position: absolute; left: 0; top: 0; width: 100%; 
+                background: white; z-index: 9999; padding: 0; margin: 0; 
             }
             .print-visible * { visibility: visible; }
-
-            /* Grid layout for 3x3cm labels */
-            .label-grid {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 2mm; /* Jarak antar label di kertas */
-                padding: 5mm;
-            }
-            
-            /* 3x3 cm Label Style */
+            .label-grid { display: flex; flex-wrap: wrap; gap: 2mm; padding: 5mm; }
             .asset-label {
-                width: 3.5cm; /* Sedikit lebih lebar untuk margin aman */
-                height: 3.5cm;
-                border: 1px dashed #ccc; /* Garis potong */
-                padding: 1mm;
-                box-sizing: border-box;
-                page-break-inside: avoid;
-                overflow: hidden;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                background: white;
+                width: 3.5cm; height: 3.5cm;
+                border: 1px dashed #ccc; padding: 1mm;
+                box-sizing: border-box; page-break-inside: avoid;
+                overflow: hidden; display: flex; flex-direction: column;
+                align-items: center; justify-content: center; background: white;
             }
-
             .label-text {
-                font-size: 7pt;
-                font-weight: bold;
-                text-align: center;
-                line-height: 1;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                width: 100%;
-                margin-bottom: 1mm;
+                font-size: 7pt; font-weight: bold; text-align: center;
+                white-space: nowrap; overflow: hidden; width: 100%; margin-bottom: 1mm;
             }
-
-            /* Barcode adjustments for small space */
-            svg.barcode-svg {
-                width: 100% !important;
-                height: auto !important;
-                max-height: 2.2cm; /* Maximize height within 3cm */
-            }
+            svg.barcode-svg { width: 100% !important; height: auto !important; max-height: 2.2cm; }
         }
 
         .modal-animate { animation: fadeIn 0.2s ease-out forwards; }
@@ -90,355 +67,507 @@
         
         .admin-only { display: none; }
         .staff-allowed { display: flex; }
+
+        /* Sidebar Transition */
+        #sidebar { transition: transform 0.3s ease-in-out; }
+        .sidebar-open { transform: translateX(0); }
+        .sidebar-closed { transform: translateX(-100%); }
+        
+        /* Desktop: Always show sidebar */
+        @media (min-width: 768px) {
+            .sidebar-closed { transform: translateX(0); }
+            #mobile-overlay { display: none !important; }
+        }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800 font-sans antialiased h-screen flex overflow-hidden">
 
-    <!-- LOGIN SCREEN (Overlay) -->
+    <!-- MOBILE OVERLAY (Backdrop) -->
+    <div id="mobile-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black bg-opacity-50 z-30 hidden md:hidden transition-opacity"></div>
+
+    <!-- LOGIN SCREEN -->
     <div id="login-screen" class="fixed inset-0 bg-slate-900 z-50 flex flex-col items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden p-8 text-center">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm sm:max-w-md overflow-hidden p-6 sm:p-8 text-center modal-animate">
             <div class="mb-6">
-                <i class="fa-solid fa-cube text-5xl text-blue-600 mb-2"></i>
-                <h1 class="text-2xl font-bold text-gray-800">AssetMgr Login</h1>
-                <p class="text-gray-500 text-sm">Masuk untuk memulai sesi</p>
+                <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fa-solid fa-cube text-3xl text-primary"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-gray-800">AssetMgr</h1>
+                <p class="text-gray-500 text-sm">Sistem Manajemen Aset & Stock Opname</p>
             </div>
 
             <!-- Login Tabs -->
             <div class="flex border-b mb-6">
-                <button onclick="switchLoginTab('admin')" id="tab-admin" class="flex-1 pb-2 border-b-2 border-blue-600 text-blue-600 font-bold">Admin</button>
-                <button onclick="switchLoginTab('staff')" id="tab-staff" class="flex-1 pb-2 border-b-2 border-transparent text-gray-400 hover:text-gray-600">Karyawan</button>
+                <button onclick="switchLoginTab('admin')" id="tab-admin" class="flex-1 pb-3 border-b-2 border-primary text-primary font-bold transition-colors">Admin</button>
+                <button onclick="switchLoginTab('staff')" id="tab-staff" class="flex-1 pb-3 border-b-2 border-transparent text-gray-400 hover:text-gray-600 transition-colors">Karyawan</button>
             </div>
 
             <form id="form-login-admin" onsubmit="handleLogin(event, 'admin')" class="space-y-4">
-                <div class="text-left text-sm text-gray-500 font-bold mb-1">Password Admin:</div>
-                <input type="password" id="login-password" placeholder="Masukkan Password..." class="w-full border rounded-lg p-3 bg-gray-50 text-center text-lg" required>
-                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow-lg">Masuk sebagai Admin</button>
+                <div class="text-left">
+                    <label class="text-xs font-bold text-gray-500 uppercase">Password Admin</label>
+                    <input type="password" id="login-password" placeholder="••••••" class="mt-1 w-full border rounded-xl p-3 bg-gray-50 text-center text-lg focus:ring-2 focus:ring-primary focus:outline-none transition-shadow" required>
+                </div>
+                <button type="submit" class="w-full bg-primary hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl shadow-lg hover:shadow-xl transition-all active:scale-95">Masuk Dashboard</button>
             </form>
 
             <form id="form-login-staff" onsubmit="handleLogin(event, 'staff')" class="space-y-4 hidden">
-                <div class="text-left text-sm text-gray-500 font-bold mb-1">NIK Karyawan:</div>
-                <input type="text" id="login-nik" placeholder="Contoh: 12345" class="w-full border rounded-lg p-3 bg-gray-50 text-center font-mono text-lg" required>
-                <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg shadow-lg">Masuk Sesi Opname</button>
+                <div class="text-left">
+                    <label class="text-xs font-bold text-gray-500 uppercase">NIK Karyawan</label>
+                    <input type="text" id="login-nik" placeholder="Contoh: 12345" class="mt-1 w-full border rounded-xl p-3 bg-gray-50 text-center font-mono text-lg focus:ring-2 focus:ring-green-500 focus:outline-none transition-shadow" required>
+                </div>
+                <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 rounded-xl shadow-lg hover:shadow-xl transition-all active:scale-95">Mulai Opname</button>
             </form>
         </div>
-        <p class="text-slate-500 text-xs mt-8">Secure Asset Management System v5.9</p>
+        <p class="text-slate-500 text-xs mt-8">Versi 14.0 (Mobile Optimized)</p>
     </div>
 
     <!-- SIDEBAR -->
-    <aside class="w-64 bg-slate-900 text-white flex flex-col shadow-xl z-20 hidden" id="sidebar">
-        <div class="p-6 border-b border-slate-700 flex items-center gap-3">
-            <i class="fa-solid fa-fire text-2xl text-orange-500"></i>
-            <div>
-                <h1 class="text-xl font-bold tracking-wide">AssetMgr</h1>
-                <p class="text-xs text-slate-400" id="user-role-display">Loading...</p>
+    <aside id="sidebar" class="fixed inset-y-0 left-0 w-72 bg-secondary text-white flex flex-col shadow-2xl z-40 transform -translate-x-full md:relative md:translate-x-0">
+        <div class="p-6 border-b border-slate-700 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-layer-group text-2xl text-blue-400"></i>
+                <div>
+                    <h1 class="text-xl font-bold tracking-wide">AssetMgr</h1>
+                    <p class="text-xs text-slate-400" id="user-role-display">Loading...</p>
+                </div>
             </div>
+            <!-- Close Button Mobile -->
+            <button onclick="toggleSidebar()" class="md:hidden text-gray-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
         </div>
 
         <nav class="flex-1 overflow-y-auto py-4">
             <ul class="space-y-1 px-3">
+                <li class="px-3 py-2 text-xs font-bold text-slate-500 uppercase tracking-wider">Menu Utama</li>
                 <li class="admin-only">
-                    <button onclick="showPage('dashboard')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition-colors text-slate-300 hover:text-white" id="nav-dashboard">
-                        <i class="fa-solid fa-chart-pie w-5"></i> Dashboard
+                    <button onclick="showPage('dashboard')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-700 transition-colors text-slate-300 hover:text-white group" id="nav-dashboard">
+                        <span class="w-8 flex justify-center"><i class="fa-solid fa-chart-pie group-hover:scale-110 transition-transform"></i></span> Dashboard
                     </button>
                 </li>
                 <li class="admin-only">
-                    <button onclick="showPage('assets')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition-colors text-slate-300 hover:text-white" id="nav-assets">
-                        <i class="fa-solid fa-box w-5"></i> Data Aset
-                    </button>
-                </li>
-                <!-- NEW PRINT MENU -->
-                <li class="admin-only">
-                    <button onclick="showPage('print')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition-colors text-slate-300 hover:text-white" id="nav-print">
-                        <i class="fa-solid fa-print w-5"></i> Cetak Label 3x3
+                    <button onclick="showPage('assets')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-700 transition-colors text-slate-300 hover:text-white group" id="nav-assets">
+                        <span class="w-8 flex justify-center"><i class="fa-solid fa-box group-hover:scale-110 transition-transform"></i></span> Data Aset
                     </button>
                 </li>
                 <li class="admin-only">
-                    <button onclick="showPage('mutation')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition-colors text-slate-300 hover:text-white" id="nav-mutation">
-                        <i class="fa-solid fa-truck-moving w-5"></i> Mutasi HUB
+                    <button onclick="showPage('mutation')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-700 transition-colors text-slate-300 hover:text-white group" id="nav-mutation">
+                        <span class="w-8 flex justify-center"><i class="fa-solid fa-truck-moving group-hover:scale-110 transition-transform"></i></span> Mutasi HUB
+                    </button>
+                </li>
+                
+                <li class="px-3 py-2 mt-2 text-xs font-bold text-slate-500 uppercase tracking-wider">Operasional</li>
+                <li class="staff-allowed">
+                    <button onclick="showPage('opname')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-700 transition-colors text-slate-300 hover:text-white group" id="nav-opname">
+                        <span class="w-8 flex justify-center"><i class="fa-solid fa-barcode group-hover:scale-110 transition-transform"></i></span> Stock Opname
+                    </button>
+                </li>
+                <li class="admin-only">
+                    <button onclick="showPage('print')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-700 transition-colors text-slate-300 hover:text-white group" id="nav-print">
+                        <span class="w-8 flex justify-center"><i class="fa-solid fa-print group-hover:scale-110 transition-transform"></i></span> Cetak Label
+                    </button>
+                </li>
+
+                <li class="px-3 py-2 mt-2 text-xs font-bold text-slate-500 uppercase tracking-wider">Laporan</li>
+                <li class="admin-only">
+                    <button onclick="showPage('history-so')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-700 transition-colors text-slate-300 hover:text-white group" id="nav-history-so">
+                        <span class="w-8 flex justify-center"><i class="fa-solid fa-list-check group-hover:scale-110 transition-transform"></i></span> Riwayat SO
                     </button>
                 </li>
                 <li class="staff-allowed">
-                    <button onclick="showPage('opname')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition-colors text-slate-300 hover:text-white" id="nav-opname">
-                        <i class="fa-solid fa-barcode w-5"></i> Stock Opname
+                    <button onclick="showPage('history')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-700 transition-colors text-slate-300 hover:text-white group" id="nav-history">
+                        <span class="w-8 flex justify-center"><i class="fa-solid fa-clock-rotate-left group-hover:scale-110 transition-transform"></i></span> Riwayat Semua
                     </button>
                 </li>
-                <!-- NEW HISTORY SO MENU -->
+                
+                <li class="px-3 py-2 mt-2 text-xs font-bold text-slate-500 uppercase tracking-wider admin-only">Admin</li>
                 <li class="admin-only">
-                    <button onclick="showPage('history-so')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition-colors text-slate-300 hover:text-white" id="nav-history-so">
-                        <i class="fa-solid fa-list-check w-5"></i> Riwayat SO
-                    </button>
-                </li>
-                <li class="staff-allowed">
-                    <button onclick="showPage('history')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition-colors text-slate-300 hover:text-white" id="nav-history">
-                        <i class="fa-solid fa-clock-rotate-left w-5"></i> Riwayat Semua
-                    </button>
-                </li>
-                <li class="admin-only mt-4 border-t border-slate-700 pt-4">
-                    <button onclick="showPage('settings')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition-colors text-slate-300 hover:text-white" id="nav-settings">
-                        <i class="fa-solid fa-users-gear w-5"></i> Pengaturan
+                    <button onclick="showPage('settings')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-700 transition-colors text-slate-300 hover:text-white group" id="nav-settings">
+                        <span class="w-8 flex justify-center"><i class="fa-solid fa-users-gear group-hover:scale-110 transition-transform"></i></span> Pengaturan
                     </button>
                 </li>
             </ul>
         </nav>
 
-        <div class="p-4 border-t border-slate-700">
-             <button onclick="logout()" class="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm rounded transition-colors">
+        <div class="p-4 border-t border-slate-700 bg-slate-900">
+             <button onclick="logout()" class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-xl transition-colors active:scale-95">
                 <i class="fa-solid fa-right-from-bracket"></i> Keluar
             </button>
         </div>
     </aside>
 
     <!-- MAIN CONTENT -->
-    <main class="flex-1 flex flex-col h-full overflow-hidden relative hidden" id="main-content">
+    <main class="flex-1 flex flex-col h-full overflow-hidden relative" id="main-content">
         <!-- Header -->
-        <header class="h-16 bg-white shadow-sm border-b border-gray-200 flex items-center justify-between px-6 z-10">
-            <h2 id="page-title" class="text-xl font-bold text-slate-800">Dashboard</h2>
+        <header class="h-16 bg-white shadow-sm border-b border-gray-200 flex items-center justify-between px-4 lg:px-8 z-30 shrink-0">
             <div class="flex items-center gap-4">
-                <span class="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full font-bold" id="header-username">
-                    <i class="fa-solid fa-user mr-2"></i> User
-                </span>
+                <button onclick="toggleSidebar()" class="md:hidden text-gray-500 hover:text-gray-800 p-2 rounded-lg hover:bg-gray-100">
+                    <i class="fa-solid fa-bars text-xl"></i>
+                </button>
+                <h2 id="page-title" class="text-xl font-bold text-slate-800 truncate">Dashboard</h2>
+            </div>
+            
+            <div class="flex items-center gap-3 bg-gray-100 px-3 py-1.5 rounded-full border border-gray-200">
+                <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm text-primary">
+                    <i class="fa-solid fa-user"></i>
+                </div>
+                <span class="text-sm font-medium text-gray-700 hidden sm:inline" id="header-username">User</span>
             </div>
         </header>
 
         <!-- Content Area -->
-        <div class="flex-1 overflow-y-auto p-6 bg-gray-50 relative" id="content-area">
+        <div class="flex-1 overflow-y-auto p-4 lg:p-8 bg-gray-50 relative scroll-smooth" id="content-area">
             
             <!-- DASHBOARD VIEW -->
             <div id="view-dashboard" class="page-view space-y-6">
-                <!-- Stats Cards ... (Keep existing) -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 border-l-4 border-l-blue-500">
-                        <p class="text-gray-500 text-sm font-medium">Total Aset</p>
-                        <h3 class="text-3xl font-bold text-gray-800 mt-1" id="dash-total">...</h3>
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+                    <!-- Card 1 -->
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 hover:-translate-y-1 transition-transform">
+                        <div class="p-4 rounded-xl bg-blue-50 text-blue-600">
+                            <i class="fa-solid fa-cubes text-2xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500 text-xs font-bold uppercase tracking-wide">Total Aset</p>
+                            <h3 class="text-2xl font-bold text-gray-800 mt-1" id="dash-total">...</h3>
+                        </div>
                     </div>
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 border-l-4 border-l-green-500">
-                        <p class="text-gray-500 text-sm font-medium">Komposisi (IT/Non-IT)</p>
-                        <h3 class="text-xl font-bold text-gray-800 mt-1" id="dash-composition">...</h3>
+                    <!-- Card 2 -->
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 hover:-translate-y-1 transition-transform">
+                        <div class="p-4 rounded-xl bg-green-50 text-green-600">
+                            <i class="fa-solid fa-layer-group text-2xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500 text-xs font-bold uppercase tracking-wide">IT / Non-IT</p>
+                            <h3 class="text-lg font-bold text-gray-800 mt-1" id="dash-composition">...</h3>
+                        </div>
                     </div>
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 border-l-4 border-l-indigo-500">
-                        <p class="text-gray-500 text-sm font-medium">Total HUB</p>
-                        <h3 class="text-3xl font-bold text-gray-800 mt-1" id="dash-hubs">...</h3>
+                    <!-- Card 3 -->
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 hover:-translate-y-1 transition-transform">
+                        <div class="p-4 rounded-xl bg-indigo-50 text-indigo-600">
+                            <i class="fa-solid fa-map-location-dot text-2xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500 text-xs font-bold uppercase tracking-wide">Total HUB</p>
+                            <h3 class="text-2xl font-bold text-gray-800 mt-1" id="dash-hubs">...</h3>
+                        </div>
                     </div>
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 border-l-4 border-l-orange-500">
-                        <p class="text-gray-500 text-sm font-medium">Aset Rusak</p>
-                        <h3 class="text-3xl font-bold text-gray-800 mt-1" id="dash-damaged">...</h3>
+                    <!-- Card 4 -->
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 hover:-translate-y-1 transition-transform">
+                        <div class="p-4 rounded-xl bg-orange-50 text-orange-600">
+                            <i class="fa-solid fa-triangle-exclamation text-2xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500 text-xs font-bold uppercase tracking-wide">Aset Rusak</p>
+                            <h3 class="text-2xl font-bold text-gray-800 mt-1" id="dash-damaged">...</h3>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- PRINT BARCODE VIEW (Small Label) -->
-            <div id="view-print" class="page-view hidden space-y-6">
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-lg font-bold text-gray-800"><i class="fa-solid fa-print mr-2"></i> Cetak Label (3x3 cm)</h3>
-                        <p class="text-xs text-gray-500 italic">Layout dioptimalkan untuk label kecil. Barcode dibuat maksimal.</p>
+            <!-- ASSETS VIEW -->
+            <div id="view-assets" class="page-view hidden space-y-4">
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 flex flex-col md:flex-row gap-4 justify-between items-center">
+                    <div class="relative w-full md:w-96">
+                        <i class="fa-solid fa-magnifying-glass absolute left-4 top-3.5 text-gray-400"></i>
+                        <input type="text" id="asset-search" onkeyup="renderAssetsTable()" placeholder="Cari S/N, ECM, Nama..." class="w-full pl-11 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-shadow">
                     </div>
-                    
-                    <!-- Filter Controls -->
-                    <div class="flex flex-col md:flex-row gap-4 mb-6 p-4 bg-gray-50 rounded-lg border">
-                        <div class="flex-1">
-                            <label class="text-xs font-bold text-gray-500">Filter:</label>
-                            <select id="print-filter-type" class="w-full border rounded p-2 mt-1" onchange="renderPrintFilterInput()">
-                                <option value="all">Semua Aset</option>
-                                <option value="hub">Per HUB</option>
-                                <option value="category">Per Kategori (IT/Non-IT)</option>
-                                <option value="search">Cari Nama Barang</option>
-                            </select>
-                        </div>
-                        <div class="flex-1" id="print-filter-input-container">
-                            <label class="text-xs font-bold text-gray-500">&nbsp;</label>
-                            <input type="text" class="w-full border rounded p-2 mt-1 bg-gray-100" disabled placeholder="Pilih filter...">
-                        </div>
-                        <div class="flex items-end">
-                            <button onclick="renderPrintPreview()" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 font-bold h-[42px]">
-                                Tampilkan
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Preview & Action -->
-                    <div class="flex justify-between items-center mb-4">
-                        <h4 class="font-bold text-gray-700">Daftar: <span id="print-count">0</span> Aset</h4>
-                        <button onclick="executeBulkPrint()" class="bg-gray-800 text-white px-6 py-2 rounded hover:bg-black font-bold">
-                            <i class="fa-solid fa-print mr-2"></i> Cetak
+                    <div class="flex gap-2 w-full md:w-auto">
+                        <input type="file" id="csv-file-input" accept=".csv" class="hidden" onchange="handleCSVUpload(event)">
+                        <button onclick="document.getElementById('csv-file-input').click()" class="flex-1 md:flex-none bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 px-4 py-3 rounded-xl font-medium flex items-center justify-center gap-2 transition-colors">
+                            <i class="fa-solid fa-file-csv"></i> Import
+                        </button>
+                        <button onclick="openModal('modal-add-asset')" class="flex-1 md:flex-none bg-primary hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-medium flex items-center justify-center gap-2 transition-colors shadow-md shadow-blue-100">
+                            <i class="fa-solid fa-plus"></i> <span class="hidden sm:inline">Tambah Aset</span>
                         </button>
                     </div>
-
-                    <!-- Table Preview -->
-                    <div class="overflow-x-auto border rounded-lg max-h-[500px]">
-                        <table class="w-full text-sm text-left">
-                            <thead class="text-xs text-gray-700 uppercase bg-gray-100 sticky top-0">
-                                <tr>
-                                    <th class="px-4 py-3">ECM (ID)</th>
-                                    <th class="px-4 py-3">Nama Barang</th>
-                                    <th class="px-4 py-3">HUB</th>
-                                </tr>
-                            </thead>
-                            <tbody id="print-preview-body">
-                                <tr><td colspan="3" class="text-center py-4 text-gray-400">Pilih filter dan klik Tampilkan</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
                 </div>
-            </div>
 
-            <!-- HISTORY SO VIEW (NEW) -->
-            <div id="view-history-so" class="page-view hidden space-y-4">
-                <div class="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
-                    <div class="p-4 border-b bg-gray-50 flex justify-between items-center">
-                        <h3 class="font-bold text-gray-700"><i class="fa-solid fa-list-check mr-2"></i> Riwayat Stock Opname (SO)</h3>
-                        <div class="text-xs text-gray-500">Menampilkan semua hasil SO</div>
-                    </div>
-                    <div class="p-4 bg-gray-50 border-b">
-                        <input type="text" id="so-history-search" onkeyup="renderHistorySO()" placeholder="Cari aset di riwayat SO..." class="w-full border rounded p-2 text-sm">
-                    </div>
+                <div class="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-200">
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm text-left">
-                            <thead class="text-xs text-gray-700 uppercase bg-gray-100">
+                            <thead class="text-xs text-gray-500 uppercase bg-gray-50 border-b">
                                 <tr>
-                                    <th class="px-4 py-3">Waktu Cek</th>
-                                    <th class="px-4 py-3">Aset</th>
-                                    <th class="px-4 py-3">Hasil</th>
-                                    <th class="px-4 py-3">Oleh</th>
+                                    <th class="px-6 py-4 font-semibold">Aset Info</th>
+                                    <th class="px-6 py-4 font-semibold">Lokasi</th>
+                                    <th class="px-6 py-4 font-semibold">Status</th>
+                                    <th class="px-6 py-4 font-semibold">Aksi</th>
                                 </tr>
                             </thead>
-                            <tbody id="history-so-body">
-                                <tr><td colspan="4" class="text-center py-4">Memuat data...</td></tr>
-                            </tbody>
+                            <tbody id="assets-table-body" class="divide-y divide-gray-100"></tbody>
                         </table>
                     </div>
                 </div>
             </div>
 
-            <!-- Other Views (Assets, Mutation, Opname, History, Settings) kept as is... -->
-            <div id="view-assets" class="page-view hidden space-y-4">
-                <!-- Existing Assets View Content -->
-                <div class="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-lg shadow-sm">
-                    <div class="relative w-full md:w-96">
-                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400"></i>
-                        <input type="text" id="asset-search" onkeyup="renderAssetsTable()" placeholder="Cari S/N, ECM, NS, Nama..." class="w-full pl-10 pr-4 py-2 border rounded-lg">
-                    </div>
-                    <div class="flex gap-2">
-                        <input type="file" id="csv-file-input" accept=".csv" class="hidden" onchange="handleCSVUpload(event)">
-                        <button onclick="document.getElementById('csv-file-input').click()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">Import CSV</button>
-                        <button onclick="openModal('modal-add-asset')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">Tambah Aset</button>
-                    </div>
-                </div>
-                <div class="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200 overflow-x-auto">
-                    <table class="w-full text-sm text-left">
-                        <thead class="text-xs text-gray-700 uppercase bg-gray-50">
-                            <tr><th class="px-4 py-3">S/N</th><th class="px-4 py-3">NUMBER ECM</th><th class="px-4 py-3">NUMBER NS</th><th class="px-4 py-3">Nama Barang</th><th class="px-4 py-3">Kategori</th><th class="px-4 py-3">HUB & Lokasi</th><th class="px-4 py-3">Kondisi</th><th class="px-4 py-3">Gunakan/Tidak</th><th class="px-4 py-3">Terakhir SO</th><th class="px-4 py-3 text-right">Aksi</th></tr>
-                        </thead>
-                        <tbody id="assets-table-body"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Mutation View -->
+            <!-- MUTATION VIEW -->
             <div id="view-mutation" class="page-view hidden space-y-6">
-                <div class="bg-white p-6 rounded-xl shadow-sm max-w-2xl mx-auto border border-gray-200">
-                    <h3 class="text-lg font-bold mb-4">Form Mutasi Antar HUB</h3>
-                    <form onsubmit="handleMutation(event)" class="space-y-4">
-                        <select id="mutation-asset-id" class="w-full border rounded-lg p-2.5" required></select>
-                        <div class="grid grid-cols-2 gap-4">
-                            <input type="text" id="mutation-current-hub" class="w-full bg-gray-100 border rounded p-2" readonly placeholder="HUB Asal">
-                            <input type="text" id="mutation-current-loc" class="w-full bg-gray-100 border rounded p-2" readonly placeholder="Lokasi Asal">
+                <div class="bg-white p-6 md:p-8 rounded-2xl shadow-sm max-w-3xl mx-auto border border-gray-200">
+                    <div class="flex items-center gap-4 mb-8 border-b pb-6">
+                        <div class="w-12 h-12 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-truck-moving"></i>
                         </div>
-                        <div class="grid grid-cols-2 gap-4">
-                             <select id="mutation-new-hub" class="w-full border rounded-lg p-2.5 hub-selector" required><option value="">-- HUB Tujuan --</option></select>
-                            <input type="text" id="mutation-new-loc" placeholder="Lokasi Baru" class="w-full border rounded-lg p-2" required>
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-800">Form Mutasi Antar HUB</h3>
+                            <p class="text-sm text-gray-500">Pindahkan aset dari satu lokasi HUB ke HUB lain.</p>
                         </div>
-                        <textarea id="mutation-reason" rows="2" class="w-full border rounded-lg p-2" placeholder="Alasan Mutasi"></textarea>
-                        <button type="submit" class="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 rounded-lg">Eksekusi Mutasi</button>
+                    </div>
+                    
+                    <form onsubmit="handleMutation(event)" class="space-y-6">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Pilih Aset</label>
+                            <select id="mutation-asset-id" class="w-full border rounded-xl p-3 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none" required></select>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                                <p class="text-xs font-bold text-gray-400 uppercase mb-3">Posisi Sekarang</p>
+                                <div class="space-y-3">
+                                    <input type="text" id="mutation-current-hub" class="w-full bg-white border rounded-lg p-2 text-sm text-gray-600" readonly placeholder="HUB Asal">
+                                    <input type="text" id="mutation-current-loc" class="w-full bg-white border rounded-lg p-2 text-sm text-gray-600" readonly placeholder="Lokasi Asal">
+                                </div>
+                            </div>
+                            <div class="bg-orange-50 p-4 rounded-xl border border-orange-100">
+                                <p class="text-xs font-bold text-orange-400 uppercase mb-3">Tujuan Mutasi</p>
+                                <div class="space-y-3">
+                                    <select id="mutation-new-hub" class="w-full border rounded-lg p-2 text-sm hub-selector focus:ring-1 focus:ring-orange-500" required><option value="">-- Pilih HUB --</option></select>
+                                    <input type="text" id="mutation-new-loc" placeholder="Lokasi Detail Baru" class="w-full border rounded-lg p-2 text-sm focus:ring-1 focus:ring-orange-500" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Keterangan / Alasan</label>
+                            <textarea id="mutation-reason" rows="3" class="w-full border rounded-xl p-3 focus:ring-2 focus:ring-orange-500 outline-none" placeholder="Contoh: Kebutuhan project baru..."></textarea>
+                        </div>
+                        <button type="submit" class="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-orange-100 transition-all active:scale-95">
+                            Proses Mutasi
+                        </button>
                     </form>
                 </div>
             </div>
 
-            <!-- Opname View -->
+            <!-- OPNAME VIEW -->
             <div id="view-opname" class="page-view hidden space-y-4">
-                <div class="flex flex-col md:flex-row gap-6 h-[calc(100vh-140px)]">
-                    <div class="w-full md:w-2/5 flex flex-col gap-4 overflow-y-auto">
-                        <div class="bg-white p-6 rounded-xl shadow-lg border border-blue-200">
-                            <h3 class="font-bold text-xl text-blue-900 mb-4 flex items-center justify-between">
-                                <span><i class="fa-solid fa-clipboard-check"></i> Stock Opname</span>
-                                <button onclick="toggleCamera()" class="text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded transition"><i class="fa-solid fa-camera"></i> Scan Kamera</button>
-                            </h3>
-                            <div id="reader" class="hidden w-full mb-4 border-2 border-gray-300 rounded-lg overflow-hidden"></div>
-                            <div class="space-y-4 mb-6">
-                                <input type="text" id="opname-input" class="w-full border-2 border-blue-300 rounded-lg p-2.5 font-mono text-center text-lg" placeholder="SCAN S/N / ECM / NS" autocomplete="off">
+                <div class="flex flex-col lg:flex-row gap-6 h-[calc(100vh-140px)]">
+                    <!-- Left Panel -->
+                    <div class="w-full lg:w-5/12 flex flex-col gap-4 overflow-y-auto">
+                        <div class="bg-white p-6 rounded-2xl shadow-lg border border-blue-100">
+                            <div class="flex justify-between items-start mb-6">
+                                <div>
+                                    <h3 class="font-bold text-xl text-slate-800">Scanner Opname</h3>
+                                    <p class="text-sm text-gray-500">Scan barcode aset fisik</p>
+                                </div>
+                                <button onclick="toggleCamera()" class="bg-blue-50 text-blue-600 p-3 rounded-xl hover:bg-blue-100 transition-colors">
+                                    <i class="fa-solid fa-camera text-xl"></i>
+                                </button>
                             </div>
-                            <div id="opname-form-details" class="hidden border-t pt-4 space-y-4 modal-animate">
+                            
+                            <div id="reader" class="hidden w-full mb-6 border-2 border-slate-200 rounded-xl overflow-hidden bg-black"></div>
+
+                            <div class="relative mb-6">
+                                <i class="fa-solid fa-barcode absolute left-4 top-3.5 text-gray-400"></i>
+                                <input type="text" id="opname-input" class="w-full pl-11 pr-4 py-3 border-2 border-blue-100 rounded-xl font-mono text-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Scan / Ketik ID..." autocomplete="off">
+                            </div>
+
+                            <!-- Detail Card -->
+                            <div id="opname-form-details" class="hidden border-t border-dashed pt-6 space-y-5 modal-animate">
                                 <input type="hidden" id="op-current-id">
-                                <div class="p-3 bg-blue-50 rounded-lg"><h4 class="font-bold text-blue-900" id="op-name">Asset Name</h4></div>
-                                <div class="flex gap-2">
-                                    <label class="flex-1 cursor-pointer"><input type="radio" name="op-condition" value="Baik" class="peer sr-only" checked><div class="p-2 border rounded text-center peer-checked:bg-green-100 peer-checked:border-green-500 font-bold text-sm">Baik</div></label>
-                                    <label class="flex-1 cursor-pointer"><input type="radio" name="op-condition" value="Rusak" class="peer sr-only"><div class="p-2 border rounded text-center peer-checked:bg-red-100 peer-checked:border-red-500 font-bold text-sm">Rusak</div></label>
+                                <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                                    <h4 class="font-bold text-lg text-blue-900 mb-1" id="op-name">Asset Name</h4>
+                                    <p class="text-xs text-blue-600 font-mono">ID: <span id="op-id-display">...</span></p>
                                 </div>
-                                <div class="flex gap-2">
-                                    <label class="flex-1 cursor-pointer"><input type="radio" name="op-usage" value="Digunakan" class="peer sr-only" checked><div class="p-2 border rounded text-center peer-checked:bg-blue-100 peer-checked:border-blue-500 font-bold text-sm">Dipakai</div></label>
-                                    <label class="flex-1 cursor-pointer"><input type="radio" name="op-usage" value="Idle" class="peer sr-only"><div class="p-2 border rounded text-center peer-checked:bg-gray-200 peer-checked:border-gray-500 font-bold text-sm">Gudang</div></label>
+                                
+                                <div>
+                                    <label class="text-xs font-bold text-gray-500 uppercase mb-2 block">1. Kondisi Fisik</label>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <label class="cursor-pointer">
+                                            <input type="radio" name="op-condition" value="Baik" class="peer sr-only" checked>
+                                            <div class="p-3 border-2 rounded-xl text-center peer-checked:bg-green-50 peer-checked:border-green-500 peer-checked:text-green-700 font-bold transition-all">Baik</div>
+                                        </label>
+                                        <label class="cursor-pointer">
+                                            <input type="radio" name="op-condition" value="Rusak" class="peer sr-only">
+                                            <div class="p-3 border-2 rounded-xl text-center peer-checked:bg-red-50 peer-checked:border-red-500 peer-checked:text-red-700 font-bold transition-all">Rusak</div>
+                                        </label>
+                                    </div>
                                 </div>
-                                <button onclick="saveOpnameEntry()" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg">Simpan</button>
+
+                                <div>
+                                    <label class="text-xs font-bold text-gray-500 uppercase mb-2 block">2. Status Penggunaan</label>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <label class="cursor-pointer">
+                                            <input type="radio" name="op-usage" value="Digunakan" class="peer sr-only" checked>
+                                            <div class="p-3 border-2 rounded-xl text-center peer-checked:bg-blue-50 peer-checked:border-blue-500 peer-checked:text-blue-700 font-bold transition-all">Dipakai</div>
+                                        </label>
+                                        <label class="cursor-pointer">
+                                            <input type="radio" name="op-usage" value="Idle" class="peer sr-only">
+                                            <div class="p-3 border-2 rounded-xl text-center peer-checked:bg-gray-100 peer-checked:border-gray-500 peer-checked:text-gray-700 font-bold transition-all">Gudang</div>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <button onclick="saveOpnameEntry()" class="w-full bg-green-600 text-white font-bold py-3.5 rounded-xl shadow-lg hover:bg-green-700 transition-all active:scale-95">
+                                    <i class="fa-solid fa-check mr-2"></i> Simpan Hasil
+                                </button>
                             </div>
                         </div>
                     </div>
-                    <div class="w-full md:w-3/5 flex flex-col bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                        <div class="p-4 border-b bg-gray-50 flex justify-between"><h3 class="font-bold">Sesi Ini</h3><button onclick="finishOpnameSession()" class="text-blue-600 font-bold text-sm">Simpan Sesi</button></div>
-                        <div class="flex-1 overflow-y-auto"><table class="w-full text-sm text-left"><tbody id="opname-session-body"></tbody></table></div>
+
+                    <!-- Right Panel (Session List) -->
+                    <div class="w-full lg:w-7/12 flex flex-col bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                        <div class="p-4 border-b bg-gray-50 flex justify-between items-center">
+                            <h3 class="font-bold text-gray-700">Sesi Scan Ini</h3>
+                            <button onclick="finishOpnameSession()" class="bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-blue-700 font-bold shadow-sm">
+                                Selesai & Simpan
+                            </button>
+                        </div>
+                        <div class="flex-1 overflow-y-auto">
+                            <table class="w-full text-sm text-left">
+                                <thead class="text-xs text-gray-500 uppercase bg-gray-50 sticky top-0">
+                                    <tr>
+                                        <th class="px-4 py-3">Waktu</th>
+                                        <th class="px-4 py-3">Aset</th>
+                                        <th class="px-4 py-3">Hasil</th>
+                                        <th class="px-4 py-3 text-center">OK</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="opname-session-body" class="divide-y divide-gray-100"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- History View -->
+            <!-- HISTORY VIEW -->
             <div id="view-history" class="page-view hidden space-y-4">
-                <div class="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
-                    <div class="p-4 border-b bg-gray-50"><h3 class="font-bold text-gray-700">Audit Trail (Semua Log)</h3></div>
-                    <table class="w-full text-sm text-left">
-                        <thead class="text-xs text-gray-700 uppercase bg-gray-100"><tr><th class="px-4 py-3">Waktu</th><th class="px-4 py-3">User</th><th class="px-4 py-3">Aksi</th><th class="px-4 py-3">Detail</th></tr></thead>
-                        <tbody id="history-table-body"></tbody>
-                    </table>
+                <div class="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-200">
+                    <div class="p-5 border-b border-gray-100">
+                        <h3 class="font-bold text-lg text-gray-800">Audit Trail Sistem</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left">
+                            <thead class="text-xs text-gray-500 uppercase bg-gray-50 border-b">
+                                <tr>
+                                    <th class="px-6 py-4">Waktu</th>
+                                    <th class="px-6 py-4">User</th>
+                                    <th class="px-6 py-4">Aksi</th>
+                                    <th class="px-6 py-4">Detail</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-table-body" class="divide-y divide-gray-100"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
-            <!-- Settings View -->
-            <div id="view-settings" class="page-view hidden space-y-6">
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 space-y-10">
-                    <div class="border-b pb-8">
-                        <h3 class="text-lg font-bold text-gray-800 mb-4">Manajemen HUB</h3>
-                        <form onsubmit="handleAddHub(event)" class="flex gap-4 mb-4">
-                            <input type="text" id="new-hub-name" placeholder="Nama HUB" class="flex-1 border rounded p-2" required>
-                            <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 font-bold">Tambah</button>
-                        </form>
-                        <div class="bg-gray-50 rounded border p-4 max-h-40 overflow-y-auto"><ul id="hubs-list" class="space-y-2"></ul></div>
+            <!-- HISTORY SO VIEW -->
+            <div id="view-history-so" class="page-view hidden space-y-4">
+                <div class="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-200">
+                    <div class="p-5 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4">
+                        <h3 class="font-bold text-lg text-gray-800">Riwayat Stock Opname</h3>
+                        <input type="text" id="so-history-search" onkeyup="renderHistorySO()" placeholder="Cari aset/user..." class="border rounded-lg px-4 py-2 text-sm w-full sm:w-64">
                     </div>
-                    <div class="border-b pb-8">
-                        <h3 class="text-lg font-bold text-gray-800 mb-4">Manajemen Karyawan</h3>
-                        <form onsubmit="handleAddUser(event)" class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6 items-end">
-                            <div class="md:col-span-1"><input type="text" id="new-user-nik" class="w-full border rounded p-2" placeholder="NIK" required></div>
-                            <div class="md:col-span-2"><input type="text" id="new-user-name" class="w-full border rounded p-2" placeholder="Nama" required></div>
-                            <div class="md:col-span-1"><select id="new-user-hub" class="w-full border rounded p-2 hub-selector" required><option value="">-- Pilih --</option></select></div>
-                            <div class="md:col-span-1"><button type="submit" class="w-full bg-green-600 text-white p-2 rounded hover:bg-green-700 font-bold h-[42px]">Tambah</button></div>
-                        </form>
-                        <div class="overflow-x-auto"><table class="w-full text-sm text-left border"><thead class="bg-gray-100 text-gray-700 uppercase text-xs"><tr><th class="px-4 py-2">NIK</th><th class="px-4 py-2">Nama</th><th class="px-4 py-2">HUB</th><th class="px-4 py-2">Role</th><th class="px-4 py-2 text-right">Aksi</th></tr></thead><tbody id="users-table-body"></tbody></table></div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left">
+                            <thead class="text-xs text-gray-500 uppercase bg-gray-50 border-b">
+                                <tr>
+                                    <th class="px-6 py-4">Waktu</th>
+                                    <th class="px-6 py-4">Aset</th>
+                                    <th class="px-6 py-4">Hasil</th>
+                                    <th class="px-6 py-4">Oleh</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-so-body" class="divide-y divide-gray-100"></tbody>
+                        </table>
                     </div>
-                    <div class="border-b pb-8">
-                        <h3 class="text-lg font-bold text-gray-800 mb-2">Ganti Password Admin</h3>
-                        <form onsubmit="updateAdminPassword(event)" class="flex gap-4 max-w-md">
-                            <input type="password" name="newPass" placeholder="Password Baru" class="flex-1 border rounded p-2" required>
-                            <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 font-bold">Simpan</button>
-                        </form>
-                    </div>
-                    <div class="bg-red-50 border border-red-200 rounded-xl p-6">
-                        <h3 class="text-lg font-bold text-red-700 mb-2">Zone Bahaya: Hapus Data Massal</h3>
-                        <div class="flex gap-4">
-                            <select id="delete-target" class="flex-1 border border-red-300 rounded p-2 text-red-900 bg-white">
-                                <option value="">-- Pilih Data --</option>
-                                <option value="assets">Semua Data Aset</option>
-                                <option value="historyLog">Semua Riwayat</option>
-                                <option value="users">Semua Karyawan</option>
-                                <option value="hubs">Semua Data HUB</option>
+                </div>
+            </div>
+
+            <!-- PRINT VIEW -->
+            <div id="view-print" class="page-view hidden space-y-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4 border-b pb-4">Filter & Cetak Label (3x3 cm)</h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div>
+                            <label class="text-xs font-bold text-gray-500 block mb-1">Tipe Filter</label>
+                            <select id="print-filter-type" class="w-full border rounded-xl p-2.5 bg-white" onchange="renderPrintFilterInput()">
+                                <option value="all">Semua Aset</option>
+                                <option value="hub">Per HUB</option>
+                                <option value="category">Per Kategori</option>
+                                <option value="search">Cari Nama</option>
                             </select>
-                            <button onclick="handleDeleteData()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded font-bold shadow-md">Hapus</button>
+                        </div>
+                        <div id="print-filter-input-container">
+                            <label class="text-xs font-bold text-gray-500 block mb-1">&nbsp;</label>
+                            <input type="text" class="w-full border rounded-xl p-2.5 bg-gray-100" disabled placeholder="-">
+                        </div>
+                        <div class="flex items-end">
+                            <button onclick="renderPrintPreview()" class="w-full bg-blue-600 text-white rounded-xl p-2.5 font-bold hover:bg-blue-700">Tampilkan</button>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="text-sm font-bold bg-blue-50 text-blue-700 px-3 py-1 rounded-full">Total: <span id="print-count">0</span></span>
+                        <button onclick="executeBulkPrint()" class="bg-gray-800 text-white px-5 py-2 rounded-xl font-bold hover:bg-black flex items-center gap-2">
+                            <i class="fa-solid fa-print"></i> Cetak
+                        </button>
+                    </div>
+
+                    <div class="border rounded-xl overflow-hidden max-h-[400px] overflow-y-auto">
+                        <table class="w-full text-sm text-left">
+                            <thead class="bg-gray-50 text-xs uppercase sticky top-0">
+                                <tr><th class="px-4 py-3">ID</th><th class="px-4 py-3">Nama</th><th class="px-4 py-3">Lokasi</th></tr>
+                            </thead>
+                            <tbody id="print-preview-body" class="divide-y"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SETTINGS VIEW -->
+            <div id="view-settings" class="page-view hidden space-y-8">
+                <!-- HUB Management -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
+                    <h3 class="font-bold text-lg text-gray-800 mb-4">Manajemen HUB</h3>
+                    <div class="flex gap-3 mb-4">
+                        <input type="text" id="new-hub-name" placeholder="Nama HUB Baru" class="flex-1 border rounded-xl p-2.5">
+                        <button onclick="handleAddHub(event)" class="bg-indigo-600 text-white px-4 rounded-xl font-bold">Tambah</button>
+                    </div>
+                    <ul id="hubs-list" class="space-y-2 max-h-48 overflow-y-auto pr-2"></ul>
+                </div>
+
+                <!-- Staff Management -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
+                    <h3 class="font-bold text-lg text-gray-800 mb-4">Manajemen Karyawan</h3>
+                    <form onsubmit="handleAddUser(event)" class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+                        <input type="text" id="new-user-nik" placeholder="NIK" class="border rounded-xl p-2.5" required>
+                        <input type="text" id="new-user-name" placeholder="Nama" class="border rounded-xl p-2.5 md:col-span-2" required>
+                        <select id="new-user-hub" class="border rounded-xl p-2.5 hub-selector" required><option value="">Pilih HUB</option></select>
+                        <button type="submit" class="bg-green-600 text-white p-2.5 rounded-xl font-bold md:col-span-4">Tambah Karyawan</button>
+                    </form>
+                    <div class="overflow-x-auto rounded-xl border">
+                        <table class="w-full text-sm text-left"><tbody id="users-table-body" class="divide-y"></tbody></table>
+                    </div>
+                </div>
+
+                <!-- Admin Pass & Danger Zone -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
+                        <h3 class="font-bold text-gray-800 mb-4">Password Admin</h3>
+                        <form onsubmit="updateAdminPassword(event)" class="flex gap-3">
+                            <input type="password" name="newPass" placeholder="Password Baru" class="flex-1 border rounded-xl p-2.5" required>
+                            <button class="bg-blue-600 text-white px-4 rounded-xl font-bold">Simpan</button>
+                        </form>
+                    </div>
+                    <div class="bg-red-50 p-6 rounded-2xl border border-red-100">
+                        <h3 class="font-bold text-red-700 mb-4">Hapus Data Massal</h3>
+                        <div class="flex gap-3">
+                            <select id="delete-target" class="flex-1 border border-red-200 rounded-xl p-2.5 bg-white text-sm">
+                                <option value="">-- Pilih Data --</option>
+                                <option value="assets">Semua Aset</option>
+                                <option value="historyLog">Semua Riwayat</option>
+                                <option value="users">Semua Staff</option>
+                            </select>
+                            <button onclick="handleDeleteData()" class="bg-red-600 text-white px-4 rounded-xl font-bold">Hapus</button>
                         </div>
                     </div>
                 </div>
@@ -447,58 +576,60 @@
         </div>
     </main>
 
-    <!-- HIDDEN CONTAINER FOR BULK PRINT -->
+    <!-- HIDDEN PRINT CONTAINER -->
     <div id="bulk-print-output" class="hidden print-visible label-grid"></div>
 
     <!-- MODAL: ADD ASSET -->
     <div id="modal-add-asset" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden p-6 modal-animate">
-            <h3 class="font-bold text-lg mb-4">Tambah Aset</h3>
-            <form onsubmit="saveNewAsset(event)" class="space-y-3">
-                <div class="grid grid-cols-3 gap-2">
-                    <div class="col-span-1"><label class="text-xs font-bold text-gray-500">S/N</label><input type="text" name="sn" class="border p-2 rounded w-full" required></div>
-                    <div class="col-span-1"><label class="text-xs font-bold text-gray-500">ECM</label><input type="text" name="id" class="border p-2 rounded w-full" required></div>
-                    <div class="col-span-1"><label class="text-xs font-bold text-gray-500">NS</label><input type="text" name="ns" class="border p-2 rounded w-full"></div>
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden p-6 modal-animate max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="font-bold text-lg text-gray-800">Tambah Aset Baru</h3>
+                <button onclick="closeModal('modal-add-asset')" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <form onsubmit="saveNewAsset(event)" class="space-y-4">
+                <div class="grid grid-cols-3 gap-3">
+                    <div class="col-span-1"><label class="text-xs font-bold text-gray-500 mb-1 block">S/N</label><input type="text" name="sn" class="border p-2.5 rounded-xl w-full" required></div>
+                    <div class="col-span-1"><label class="text-xs font-bold text-gray-500 mb-1 block">ECM</label><input type="text" name="id" class="border p-2.5 rounded-xl w-full" required></div>
+                    <div class="col-span-1"><label class="text-xs font-bold text-gray-500 mb-1 block">NS</label><input type="text" name="ns" class="border p-2.5 rounded-xl w-full"></div>
                 </div>
-                <div><label class="text-xs font-bold text-gray-500">Nama Barang</label><input type="text" name="name" class="border p-2 rounded w-full" required></div>
+                <div><label class="text-xs font-bold text-gray-500 mb-1 block">Nama Barang</label><input type="text" name="name" class="border p-2.5 rounded-xl w-full" required></div>
                 <div>
-                    <label class="text-xs font-bold text-gray-500">Kategori Aset</label>
-                    <select name="group" class="border p-2 rounded w-full font-bold"><option value="IT">IT</option><option value="Non IT">Non IT</option></select>
+                    <label class="text-xs font-bold text-gray-500 mb-1 block">Kategori</label>
+                    <select name="group" class="border p-2.5 rounded-xl w-full"><option value="IT">IT</option><option value="Non IT">Non IT</option></select>
                 </div>
-                <div class="grid grid-cols-2 gap-2">
-                    <div><label class="text-xs font-bold text-gray-500">HUB</label><select name="hub" class="border p-2 rounded w-full hub-selector"><option value="">-- Pilih --</option></select></div>
-                    <div><label class="text-xs font-bold text-gray-500">Lokasi</label><input type="text" name="location" class="border p-2 rounded w-full" required></div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="text-xs font-bold text-gray-500 mb-1 block">HUB</label><select name="hub" class="border p-2.5 rounded-xl w-full hub-selector"><option value="">-- Pilih --</option></select></div>
+                    <div><label class="text-xs font-bold text-gray-500 mb-1 block">Lokasi</label><input type="text" name="location" class="border p-2.5 rounded-xl w-full" required></div>
                 </div>
-                <div class="flex gap-2 mt-4"><button type="button" onclick="closeModal('modal-add-asset')" class="flex-1 bg-gray-200 py-2 rounded">Batal</button><button type="submit" class="flex-1 bg-blue-600 text-white py-2 rounded">Simpan</button></div>
+                <button type="submit" class="w-full bg-primary text-white py-3 rounded-xl font-bold mt-2 hover:bg-blue-700">Simpan Data</button>
             </form>
         </div>
     </div>
 
-    <!-- MODAL: BARCODE PRINT (SINGLE) -->
+    <!-- MODAL: BARCODE -->
     <div id="modal-barcode" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden text-center p-6 modal-animate print-visible">
-            <h3 class="font-bold text-gray-800 mb-4 no-print">Cetak Label Aset</h3>
-            <div id="printArea" class="border-2 border-dashed border-gray-300 p-4 rounded-lg mb-4 flex flex-col items-center justify-center bg-white">
-                <div class="text-left w-full mb-2 border-b pb-2">
-                    <h2 id="bc-name" class="font-bold text-xl leading-tight">Nama Barang</h2>
-                    <p class="text-sm text-gray-600 mt-1">Kategori: <span id="bc-cat" class="font-semibold">IT</span></p>
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center modal-animate print-visible">
+            <h3 class="font-bold text-gray-800 mb-4 no-print">Preview Label</h3>
+            <div id="printArea" class="border-2 border-dashed p-4 rounded-xl mb-4 bg-white">
+                <div class="text-left border-b pb-2 mb-2">
+                    <h2 id="bc-name" class="font-bold text-lg leading-tight truncate">Asset</h2>
+                    <p class="text-xs text-gray-500 mt-1" id="bc-cat">Cat</p>
                 </div>
-                <div class="w-full space-y-4">
-                    <div id="bc-box-sn" class="hidden"><p class="text-xs text-left font-bold text-gray-500 mb-1">S/N</p><svg id="bc-svg-sn" class="w-full h-12"></svg></div>
-                    <div id="bc-box-ecm"><p class="text-xs text-left font-bold text-gray-500 mb-1">ECM</p><svg id="bc-svg-ecm" class="w-full h-12"></svg></div>
-                    <div id="bc-box-ns" class="hidden"><p class="text-xs text-left font-bold text-gray-500 mb-1">NS</p><svg id="bc-svg-ns" class="w-full h-12"></svg></div>
+                <div class="space-y-3">
+                    <div id="bc-box-sn" class="hidden"><p class="text-[10px] text-left font-bold text-gray-400">S/N</p><svg id="bc-svg-sn" class="w-full h-8"></svg></div>
+                    <div id="bc-box-ecm"><p class="text-[10px] text-left font-bold text-gray-400">ECM</p><svg id="bc-svg-ecm" class="w-full h-8"></svg></div>
+                    <div id="bc-box-ns" class="hidden"><p class="text-[10px] text-left font-bold text-gray-400">NS</p><svg id="bc-svg-ns" class="w-full h-8"></svg></div>
                 </div>
             </div>
-            <div class="flex gap-2 no-print">
-                <button onclick="window.print()" class="flex-1 bg-gray-800 hover:bg-gray-900 text-white py-2 rounded-lg">Cetak</button>
-                <button onclick="closeModal('modal-barcode')" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 rounded-lg">Tutup</button>
+            <div class="flex gap-3 no-print">
+                <button onclick="window.print()" class="flex-1 bg-gray-800 text-white py-2.5 rounded-xl font-bold">Cetak</button>
+                <button onclick="closeModal('modal-barcode')" class="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-xl font-bold">Tutup</button>
             </div>
         </div>
     </div>
 
-    <!-- MODAL: EDIT USER/ALERT (Minimal for brevity) -->
-    <div id="modal-edit-user" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"><div class="bg-white rounded p-6 w-full max-w-sm"><h3 class="font-bold mb-4">Edit User</h3><form onsubmit="updateUser(event)" class="space-y-3"><input type="hidden" id="edit-user-nik-hidden"><input id="edit-user-nik-display" readonly class="w-full border p-2 bg-gray-100"><input id="edit-user-name" class="w-full border p-2"><select id="edit-user-hub" class="w-full border p-2 hub-selector"></select><button type="submit" class="w-full bg-blue-600 text-white p-2 rounded">Simpan</button><button type="button" onclick="closeModal('modal-edit-user')" class="w-full bg-gray-200 p-2 mt-2 rounded">Batal</button></form></div></div>
-    <div id="modal-alert" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"><div class="bg-white rounded p-6 text-center"><p id="alert-message" class="mb-4"></p><button onclick="closeModal('modal-alert')" class="bg-gray-800 text-white px-6 py-2 rounded">OK</button></div></div>
+    <!-- MODAL: EDIT USER (Hidden by default structure) -->
+    <div id="modal-edit-user" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"><div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl"><h3 class="font-bold mb-4 text-lg">Edit User</h3><form onsubmit="updateUser(event)" class="space-y-3"><input type="hidden" id="edit-user-nik-hidden"><input id="edit-user-nik-display" readonly class="w-full border rounded-xl p-2.5 bg-gray-100"><input id="edit-user-name" class="w-full border rounded-xl p-2.5"><select id="edit-user-hub" class="w-full border rounded-xl p-2.5 hub-selector"></select><div class="flex gap-2"><button type="button" onclick="closeModal('modal-edit-user')" class="flex-1 bg-gray-200 p-2.5 rounded-xl font-bold text-gray-600">Batal</button><button type="submit" class="flex-1 bg-primary text-white p-2.5 rounded-xl font-bold">Simpan</button></div></form></div></div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -528,162 +659,158 @@
             onSnapshot(collection(db, HUBS_PATH), (snap) => { hubs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); updateSelects('.hub-selector', hubs, 'name'); if(currentUser?.role === 'admin') window.renderHubSettingsTable(); });
         }
 
-        // --- BULK PRINT LOGIC ---
-        window.renderPrintFilterInput = function() {
-            const type = document.getElementById('print-filter-type').value;
-            const container = document.getElementById('print-filter-input-container');
-            container.innerHTML = '<label class="text-xs font-bold text-gray-500">&nbsp;</label>';
-            
-            if(type === 'all') {
-                container.innerHTML += '<input type="text" class="w-full border rounded p-2 mt-1 bg-gray-100" disabled value="Semua Aset">';
-            } else if(type === 'hub') {
-                let html = '<select id="print-filter-value" class="w-full border rounded p-2 mt-1"><option value="">-- Pilih HUB --</option>';
-                hubs.forEach(h => html += `<option value="${h.name}">${h.name}</option>`);
-                html += '</select>';
-                container.innerHTML += html;
-            } else if(type === 'category') {
-                container.innerHTML += '<select id="print-filter-value" class="w-full border rounded p-2 mt-1"><option value="IT">IT</option><option value="Non IT">Non IT</option></select>';
-            } else if(type === 'search') {
-                container.innerHTML += '<input type="text" id="print-filter-value" class="w-full border rounded p-2 mt-1" placeholder="Ketik Nama Barang...">';
+        // --- MOBILE UI TOGGLES ---
+        window.toggleSidebar = () => {
+            const sb = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobile-overlay');
+            if(sb.classList.contains('-translate-x-full')) {
+                sb.classList.remove('-translate-x-full');
+                overlay.classList.remove('hidden');
+            } else {
+                sb.classList.add('-translate-x-full');
+                overlay.classList.add('hidden');
             }
         }
 
-        window.renderPrintPreview = function() {
-            const type = document.getElementById('print-filter-type').value;
-            let val = document.getElementById('print-filter-value')?.value || '';
-            
-            if(type === 'hub' && !val) return alert('Pilih HUB');
-            if(type === 'search' && !val) return alert('Masukkan kata kunci');
+        // --- BULK PRINT ---
+        window.renderPrintFilterInput = () => {
+            const t = document.getElementById('print-filter-type').value;
+            const c = document.getElementById('print-filter-input-container');
+            c.innerHTML = '<label class="text-xs font-bold text-gray-500 mb-1 block">&nbsp;</label>';
+            if(t==='all') c.innerHTML+='<input type="text" class="w-full border rounded-xl p-2.5 bg-gray-100" disabled value="Semua Aset">';
+            else if(t==='hub') { let h='<select id="print-filter-value" class="w-full border rounded-xl p-2.5"><option value="">-- Pilih HUB --</option>'; hubs.forEach(x=>h+=`<option value="${x.name}">${x.name}</option>`); c.innerHTML+=h+'</select>'; }
+            else if(t==='category') c.innerHTML+='<select id="print-filter-value" class="w-full border rounded-xl p-2.5"><option value="IT">IT</option><option value="Non IT">Non IT</option></select>';
+            else c.innerHTML+='<input type="text" id="print-filter-value" class="w-full border rounded-xl p-2.5" placeholder="Ketik Nama...">';
+        }
 
+        window.renderPrintPreview = () => {
+            const t = document.getElementById('print-filter-type').value;
+            let v = document.getElementById('print-filter-value')?.value||'';
+            if(t==='hub'&&!v) return alert('Pilih HUB');
             filteredPrintAssets = assets.filter(a => {
-                if(type === 'all') return true;
-                if(type === 'hub') return a.hub === val;
-                if(type === 'category') return a.group === val;
-                if(type === 'search') return a.name.toLowerCase().includes(val.toLowerCase());
+                if(t==='all') return true;
+                if(t==='hub') return a.hub===v;
+                if(t==='category') return a.group===v;
+                if(t==='search') return a.name.toLowerCase().includes(v.toLowerCase());
                 return false;
             });
-
             document.getElementById('print-count').innerText = filteredPrintAssets.length;
-            const tbody = document.getElementById('print-preview-body');
-            
-            if(filteredPrintAssets.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-red-500">Tidak ada aset ditemukan.</td></tr>';
-                return;
-            }
-
-            tbody.innerHTML = filteredPrintAssets.slice(0, 50).map(a => `
-                <tr class="border-b">
-                    <td class="px-4 py-2 font-bold">${a.id}</td>
-                    <td class="px-4 py-2">${a.name}</td>
-                    <td class="px-4 py-2">${a.hub}</td>
-                </tr>
-            `).join('') + (filteredPrintAssets.length > 50 ? '<tr><td colspan="4" class="text-center py-2 text-gray-500 italic">...dan '+(filteredPrintAssets.length-50)+' lainnya</td></tr>' : '');
+            const tb = document.getElementById('print-preview-body');
+            if(filteredPrintAssets.length===0) return tb.innerHTML='<tr><td colspan="3" class="text-center py-4 text-gray-400">Nihil</td></tr>';
+            tb.innerHTML = filteredPrintAssets.slice(0,50).map(a=>`<tr class="border-b"><td class="px-4 py-2 font-bold">${a.id}</td><td class="px-4 py-2">${a.name}</td><td class="px-4 py-2">${a.hub}</td></tr>`).join('')+(filteredPrintAssets.length>50?'<tr><td colspan="3" class="text-center italic text-xs py-2">...</td></tr>':'');
         }
 
-        window.executeBulkPrint = function() {
-            if(filteredPrintAssets.length === 0) return alert('Tidak ada data untuk dicetak.');
-            
-            const container = document.getElementById('bulk-print-output');
-            container.innerHTML = '';
-            container.classList.remove('hidden'); 
-
-            filteredPrintAssets.forEach((a, index) => {
-                const div = document.createElement('div');
-                div.className = 'asset-label';
-                // Only Primary ECM ID Barcode to fit in 3x3
-                div.innerHTML = `
-                    <div class="label-text" style="font-size: 8px; margin-bottom:1px; white-space: nowrap; overflow: hidden;">${a.name.substring(0, 15)}</div>
-                    <svg id="bp-ecm-${index}" class="barcode-svg"></svg>
-                    <div class="label-text" style="font-size: 7px; margin-top:1px;">${a.id}</div>
-                `;
-                container.appendChild(div);
-
-                // Render Barcode
-                try { 
-                    JsBarcode(`#bp-ecm-${index}`, a.id, {
-                        format: "CODE128",
-                        lineColor: "#000",
-                        width: 1.8, // Slightly wider bars for legibility
-                        height: 60, // Taller barcode to fill space
-                        displayValue: false, // Hide text below barcode, we add custom text
-                        margin: 0
-                    }); 
-                } catch(e){}
+        window.executeBulkPrint = () => {
+            if(filteredPrintAssets.length===0) return alert('No Data');
+            const c = document.getElementById('bulk-print-output');
+            c.innerHTML = ''; c.classList.remove('hidden');
+            filteredPrintAssets.forEach((a,i) => {
+                const d = document.createElement('div'); d.className='asset-label';
+                d.innerHTML = `<div class="label-text" style="font-size:8px;margin-bottom:1px;">${a.name.substring(0,18)}</div><svg id="bp-ecm-${i}" class="barcode-svg"></svg><div class="label-text" style="font-size:7px;margin-top:1px;">${a.id}</div>`;
+                c.appendChild(d);
+                try{JsBarcode(`#bp-ecm-${i}`, a.id, {format:"CODE128",lineColor:"#000",width:1.8,height:60,displayValue:false,margin:0});}catch(e){}
             });
-
-            setTimeout(() => { window.print(); }, 500);
+            setTimeout(()=>{window.print();},500);
         }
 
-        // --- HISTORY SO LOGIC ---
-        window.renderHistorySO = function() {
-            const tbody = document.getElementById('history-so-body');
-            if(!tbody) return;
-            
-            const search = document.getElementById('so-history-search')?.value.toLowerCase() || '';
-            const soLogs = historyLog.filter(l => l.action.includes('Stock Opname') || l.action.includes('Opname'));
-            
-            const filtered = soLogs.filter(l => 
-                l.assetName.toLowerCase().includes(search) || 
-                l.assetId.toLowerCase().includes(search) ||
-                (l.actor && l.actor.toLowerCase().includes(search))
-            );
-
-            if(filtered.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-400">Belum ada data SO.</td></tr>';
-                return;
-            }
-
-            tbody.innerHTML = filtered.slice(0, 100).map(l => `
-                <tr class="border-b hover:bg-gray-50">
-                    <td class="px-4 py-2 text-xs text-gray-500 whitespace-nowrap">${new Date(l.date).toLocaleString()}</td>
-                    <td class="px-4 py-2">
-                        <div class="font-bold text-sm">${l.assetName}</div>
-                        <div class="text-xs text-gray-400 font-mono">${l.assetId}</div>
-                    </td>
-                    <td class="px-4 py-2 text-sm">${l.detail}</td>
-                    <td class="px-4 py-2 text-xs font-bold text-blue-600">${l.actor || '-'}</td>
-                </tr>
-            `).join('');
-        }
-
-        // --- Standard Functions (Re-attached to window) ---
-        window.renderAssetsTable = function() {
+        // --- RENDERERS ---
+        window.renderAssetsTable = () => {
             const s = document.getElementById('asset-search').value.toLowerCase();
-            document.getElementById('assets-table-body').innerHTML = assets.filter(a => (a.name||'').toLowerCase().includes(s) || (a.id||'').toLowerCase().includes(s) || (a.sn||'').toLowerCase().includes(s)).map(a => `<tr class="border-b hover:bg-gray-50"><td class="px-4 py-2 font-mono text-xs">${a.sn||'-'}</td><td class="px-4 py-2 font-bold text-blue-900">${a.id}</td><td class="px-4 py-2 font-mono text-xs">${a.ns||'-'}</td><td class="px-4 py-2 font-medium">${a.name}</td><td class="px-4 py-2 text-xs font-bold text-gray-500">${a.group||'-'}</td><td class="px-4 py-2 text-sm">${a.hub}</td><td class="px-4 py-2 text-xs font-bold ${a.status==='Baik'?'text-green-600':'text-red-600'}">${a.status}</td><td class="px-4 py-2 text-xs">${a.usage}</td><td class="px-4 py-2 text-xs text-gray-500">${a.lastOpname?new Date(a.lastOpname).toLocaleDateString():'-'}</td><td class="px-4 py-2 text-right"><button onclick="window.generateBarcode('${a.id}')" class="text-gray-500 mr-2"><i class="fa-solid fa-barcode"></i></button><button onclick="window.deleteAsset('${a.id}')" class="text-red-500"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('');
+            document.getElementById('assets-table-body').innerHTML = assets.filter(a => (a.name||'').toLowerCase().includes(s)||(a.id||'').toLowerCase().includes(s)||(a.sn||'').toLowerCase().includes(s)).map(a => 
+                `<tr class="border-b hover:bg-gray-50 transition-colors">
+                    <td class="px-6 py-4">
+                        <div class="font-bold text-gray-900">${a.name}</div>
+                        <div class="text-xs text-gray-500 font-mono mt-0.5">ID: ${a.id}</div>
+                        <div class="text-xs text-gray-400 font-mono">SN: ${a.sn||'-'}</div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="text-sm font-medium text-gray-700">${a.hub}</div>
+                        <div class="text-xs text-gray-500">${a.location}</div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="inline-block px-2 py-1 text-xs rounded-md font-bold ${a.status==='Baik'?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}">${a.status}</span>
+                        <div class="text-xs text-gray-500 mt-1">${a.usage}</div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="flex gap-2">
+                            <button onclick="window.generateBarcode('${a.id}')" class="text-gray-400 hover:text-gray-700"><i class="fa-solid fa-barcode text-lg"></i></button>
+                            <button onclick="window.deleteAsset('${a.id}')" class="text-red-300 hover:text-red-600"><i class="fa-solid fa-trash text-lg"></i></button>
+                        </div>
+                    </td>
+                </tr>`
+            ).join('');
         }
-        window.renderDashboard = function() { document.getElementById('dash-total').innerText = assets.length; const it = assets.filter(a=>a.group==='IT').length; document.getElementById('dash-composition').innerText = `${it} IT / ${assets.length-it} Non`; document.getElementById('dash-hubs').innerText = [...new Set(assets.map(a=>a.hub))].length; document.getElementById('dash-damaged').innerText = assets.filter(a=>a.status!=='Baik').length; }
-        window.renderHistory = function() { document.getElementById('history-table-body').innerHTML = historyLog.map(l => `<tr class="border-b text-sm"><td class="px-4 py-2">${new Date(l.date).toLocaleString()}</td><td>${l.actor||'-'}</td><td class="font-bold">${l.action}</td><td>${l.assetName} - ${l.detail}</td></tr>`).join(''); }
-        window.renderMutationForm = function() { const sel = document.getElementById('mutation-asset-id'); const cur = sel.value; sel.innerHTML = '<option value="">-- Pilih --</option>' + assets.map(a => `<option value="${a.id}">${a.id} - ${a.name}</option>`).join(''); sel.value = cur; sel.onchange = (e) => { const a = assets.find(x=>x.id===e.target.value); if(a) { document.getElementById('mutation-current-hub').value=a.hub; document.getElementById('mutation-current-loc').value=a.location; } } }
-        window.renderSettings = function() { window.renderHubSettingsTable(); document.getElementById('users-table-body').innerHTML = users.map(u => `<tr class="border-b hover:bg-gray-50"><td class="px-4 py-2 font-mono">${u.nik}</td><td>${u.name}</td><td>${u.hub||'-'}</td><td>${u.role}</td><td class="text-right px-4">${u.role!=='admin'?`<button onclick="openEditUserModal('${u.nik}')" class="text-blue-500 mr-2"><i class="fa-solid fa-pen"></i></button><button onclick="deleteUser('${u.nik}')" class="text-red-500"><i class="fa-solid fa-trash"></i></button>`:'-'}</td></tr>`).join(''); }
-        window.renderHubSettingsTable = function() { document.getElementById('hubs-list').innerHTML = hubs.map(h => `<li class="flex justify-between p-2 bg-white rounded border"><span>${h.name}</span><button onclick="deleteDocItem(HUBS_PATH, '${h.id}')" class="text-red-500"><i class="fa-solid fa-trash"></i></button></li>`).join(''); }
+
+        window.renderDashboard = () => {
+            document.getElementById('dash-total').innerText = assets.length;
+            const it = assets.filter(a=>a.group==='IT').length;
+            document.getElementById('dash-composition').innerText = `${it} IT / ${assets.length-it} Non`;
+            document.getElementById('dash-hubs').innerText = [...new Set(assets.map(a=>a.hub))].length;
+            document.getElementById('dash-damaged').innerText = assets.filter(a=>a.status!=='Baik').length;
+        }
+
+        window.renderHistory = () => {
+            document.getElementById('history-table-body').innerHTML = historyLog.map(l => 
+                `<tr class="hover:bg-gray-50"><td class="px-6 py-3 text-xs text-gray-500 whitespace-nowrap">${new Date(l.date).toLocaleString()}</td><td class="px-6 py-3 text-xs font-bold text-gray-700">${l.actor||'-'}</td><td class="px-6 py-3 text-xs font-bold ${l.action.includes('Mutasi')?'text-orange-600':l.action.includes('Opname')?'text-green-600':'text-blue-600'}">${l.action}</td><td class="px-6 py-3 text-sm text-gray-600">${l.assetName} - ${l.detail}</td></tr>`
+            ).join('');
+        }
+
+        window.renderHistorySO = () => {
+            const s = document.getElementById('so-history-search')?.value.toLowerCase()||'';
+            const logs = historyLog.filter(l => (l.action.includes('Stock Opname')||l.action.includes('Opname')) && (l.assetName.toLowerCase().includes(s)||l.assetId.toLowerCase().includes(s)||l.actor?.toLowerCase().includes(s))).slice(0,100);
+            document.getElementById('history-so-body').innerHTML = logs.map(l => 
+                `<tr class="hover:bg-gray-50"><td class="px-6 py-3 text-xs text-gray-500 whitespace-nowrap">${new Date(l.date).toLocaleString()}</td><td class="px-6 py-3"><div class="font-bold text-sm text-gray-800">${l.assetName}</div><div class="text-xs text-gray-400 font-mono">${l.assetId}</div></td><td class="px-6 py-3 text-sm text-gray-600">${l.detail}</td><td class="px-6 py-3 text-xs font-bold text-blue-600">${l.actor||'-'}</td></tr>`
+            ).join('');
+        }
+
+        window.renderSettings = () => {
+            window.renderHubSettingsTable();
+            document.getElementById('users-table-body').innerHTML = users.map(u => 
+                `<tr class="hover:bg-gray-50"><td class="px-4 py-3 font-mono text-gray-600">${u.nik}</td><td class="px-4 py-3 font-bold text-gray-800">${u.name}</td><td class="px-4 py-3 text-gray-500">${u.hub||'-'}</td><td class="px-4 py-3"><span class="text-xs px-2 py-1 rounded bg-gray-100">${u.role}</span></td><td class="px-4 py-3 text-right">${u.role!=='admin'?`<button onclick="openEditUserModal('${u.nik}')" class="text-blue-500 hover:text-blue-700 mr-3"><i class="fa-solid fa-pen"></i></button><button onclick="deleteUser('${u.nik}')" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-trash"></i></button>`:'-'}</td></tr>`
+            ).join('');
+        }
+
+        window.renderHubSettingsTable = () => {
+            document.getElementById('hubs-list').innerHTML = hubs.map(h => 
+                `<li class="flex justify-between items-center p-3 bg-gray-50 rounded-xl border border-gray-100 hover:bg-white transition-colors"><span class="font-medium text-gray-700">${h.name}</span><button onclick="deleteDocItem(HUBS_PATH, '${h.id}')" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-trash"></i></button></li>`
+            ).join('');
+        }
+
+        // --- UTILS ---
         function updateSelects(sel, data, f) { document.querySelectorAll(sel).forEach(el => { const val=el.value; el.innerHTML=`<option value="">-- Pilih --</option>`+data.map(d=>`<option value="${d[f]}">${d[f]}</option>`).join(''); if(val) el.value=val; }); }
-
-        window.toggleCamera = async function() { const r=document.getElementById('reader'); if(html5QrCode){try{await html5QrCode.stop();html5QrCode.clear();html5QrCode=null;r.classList.add('hidden');}catch(e){}return;} r.classList.remove('hidden'); html5QrCode = new Html5Qrcode("reader"); try{await html5QrCode.start({facingMode:"environment"},{fps:10,qrbox:{width:250,height:250}},(t)=>{document.getElementById('opname-input').value=t;window.handleOpnameScan(t);html5QrCode.stop().then(()=>{html5QrCode.clear();html5QrCode=null;r.classList.add('hidden');});});}catch(e){alert(e);r.classList.add('hidden');} }
-        
-        window.saveNewAsset = async (e) => { e.preventDefault(); const f=e.target, idRaw=f.id.value, docId=sanitizeId(idRaw); if(assets.find(a=>a.id===idRaw))return alert('ID Exists'); await setDoc(doc(db,ASSETS_PATH,docId),{id:idRaw,sn:f.sn.value,ns:f.ns.value,name:f.name.value,group:f.group.value,hub:f.hub.value,location:f.location.value,status:'Baik',usage:'Digunakan',lastOpname:null}); await addLogToFirestore('Add',idRaw,f.name.value,'New'); closeModal('modal-add-asset'); f.reset(); }
-        window.handleMutation = async (e) => { e.preventDefault(); const id=document.getElementById('mutation-asset-id').value, h=document.getElementById('mutation-new-hub').value, l=document.getElementById('mutation-new-loc').value, a=assets.find(x=>x.id===id); await updateDoc(doc(db,ASSETS_PATH,sanitizeId(id)),{hub:h,location:l}); await addLogToFirestore('Mutasi',id,a.name,`To ${h}`); e.target.reset(); alert('Sukses'); }
-        window.handleOpnameScan = (val) => { if(!val)return; const a=assets.find(x=>x.id.toLowerCase()===val.toLowerCase()||(x.sn&&x.sn.toLowerCase()===val.toLowerCase())||(x.ns&&x.ns.toLowerCase()===val.toLowerCase())); if(a){document.getElementById('opname-form-details').classList.remove('hidden');document.getElementById('op-current-id').value=a.id;document.getElementById('op-name').innerText=a.name;}else alert('Not Found'); }
-        window.saveOpnameEntry = async () => { const id=document.getElementById('op-current-id').value, c=document.querySelector('input[name="op-condition"]:checked').value, u=document.querySelector('input[name="op-usage"]:checked').value; await updateDoc(doc(db,ASSETS_PATH,sanitizeId(id)),{status:c,usage:u,lastOpname:new Date().toISOString()}); await addLogToFirestore('Opname',id,document.getElementById('op-name').innerText,`${c}, ${u}`); document.getElementById('opname-session-body').innerHTML+=`<tr><td class="px-4 py-2 text-xs">${new Date().toLocaleTimeString()}</td><td>${document.getElementById('op-name').innerText}</td><td>${c}</td><td>OK</td></tr>`; document.getElementById('opname-form-details').classList.add('hidden'); document.getElementById('opname-input').value=''; document.getElementById('opname-input').focus(); }
-        window.finishOpnameSession = async () => { if(confirm('Simpan Laporan?')) { await addLogToFirestore('Report','BATCH','Session End',`By ${currentUser.name}`); document.getElementById('opname-session-body').innerHTML=''; } }
-        window.handleAddHub = async (e) => { e.preventDefault(); const n=document.getElementById('new-hub-name').value; await setDoc(doc(db,HUBS_PATH,sanitizeId(n.toLowerCase())),{name:n}); document.getElementById('new-hub-name').value=''; }
-        window.deleteDocItem = async (c,id) => { if(confirm('Hapus?')) await deleteDoc(doc(db,c,id)); }
-        window.handleAddUser = async (e) => { e.preventDefault(); const f=e.target, id=sanitizeId(f.querySelector('#new-user-nik').value); if(users.find(u=>u.nik===f.querySelector('#new-user-nik').value))return alert('Exist'); await setDoc(doc(db,USERS_PATH,id),{nik:f.querySelector('#new-user-nik').value,name:f.querySelector('#new-user-name').value,hub:f.querySelector('#new-user-hub').value,role:'staff'}); f.reset(); }
-        window.updateAdminPassword = async (e) => { e.preventDefault(); await updateDoc(doc(db,USERS_PATH,'admin'),{password:e.target.newPass.value}); alert('Updated'); e.target.reset(); }
-        window.openEditUserModal = (nik) => { const u=users.find(x=>x.nik===nik); document.getElementById('edit-user-nik-hidden').value=u.nik; document.getElementById('edit-user-nik-display').value=u.nik; document.getElementById('edit-user-name').value=u.name; document.getElementById('edit-user-hub').value=u.hub||''; openModal('modal-edit-user'); }
-        window.updateUser = async (e) => { e.preventDefault(); await updateDoc(doc(db,USERS_PATH,sanitizeId(e.target.nik.value)),{name:e.target.name.value,hub:e.target.hub.value}); closeModal('modal-edit-user'); }
-        window.deleteUser = async (id) => { if(confirm('Delete?')) await deleteDoc(doc(db,USERS_PATH,sanitizeId(id))); }
-        window.handleDeleteData = async () => { const t=document.getElementById('delete-target').value; if(!t)return; if(!confirm('HAPUS SEMUA DATA INI?'))return; const q=query(collection(db,t==='assets'?ASSETS_PATH:t==='historyLog'?HISTORY_PATH:t==='users'?USERS_PATH:HUBS_PATH)); const s=await getDocs(q); let b=writeBatch(db), c=0; s.forEach(d=>{ if(t==='users'&&d.id==='admin')return; b.delete(d.ref); c++; if(c>=400){b.commit();b=writeBatch(db);c=0;} }); if(c>0)await b.commit(); alert('Deleted'); }
-        window.handleCSVUpload = function(e){ const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=async(ev)=>{ const rows=ev.target.result.split('\n').map(r=>r.trim()).filter(r=>r); let b=writeBatch(db), c=0, sc=0; for(let i=1;i<rows.length;i++){ const col=rows[i].split(','); if(col.length<4)continue; const [sn,idRaw,ns,nm,grp,hb,lc]=col.map(c=>c?c.replace(/"/g,'').trim():''); if(!idRaw || assets.find(a=>a.id===idRaw))continue; b.set(doc(db,ASSETS_PATH,sanitizeId(idRaw)),{id:idRaw,sn,ns,name:nm,group:grp,hub:hb,location:lc,status:'Baik',usage:'Digunakan',lastOpname:null}); sc++; c++; if(c===400){await b.commit();b=writeBatch(db);c=0;} } if(c>0)await b.commit(); await addLogToFirestore('Import','BATCH','Sys',`Imported ${sc}`); alert(`Imported ${sc}`); e.target.value=''; }; r.readAsText(f); }
-
-        window.showPage = (id) => { if(currentUser?.role!=='admin' && ['dashboard','assets','mutation','settings','print','history-so'].includes(id)) return alert('Access Denied'); document.querySelectorAll('.page-view').forEach(e=>e.classList.add('hidden')); document.querySelectorAll('.nav-item').forEach(e=> { e.classList.remove('bg-blue-600','text-white'); e.classList.add('text-slate-300'); }); document.getElementById('view-'+id).classList.remove('hidden'); document.getElementById('nav-'+id).classList.add('bg-blue-600','text-white'); document.getElementById('page-title').innerText = id.toUpperCase(); if(id==='assets') window.renderAssetsTable(); if(id==='dashboard') window.renderDashboard(); if(id==='mutation') window.renderMutationForm(); if(id==='settings') window.renderSettings(); if(id==='history') window.renderHistory(); if(id==='print') window.renderPrintFilterInput(); if(id==='history-so') window.renderHistorySO(); }
-        window.generateBarcode = (id) => { const a=assets.find(x=>x.id===id); if(!a)return; document.getElementById('bc-name').innerText=a.name; document.getElementById('bc-cat').innerText=`${a.category||'-'}/${a.group}`; const r=(v,b,s)=>{const x=document.getElementById(b);if(v&&v!=='-'){x.classList.remove('hidden');try{JsBarcode(s,v,{format:"CODE128",lineColor:"#000",width:2,height:40,displayValue:true,fontSize:12,marginTop:0,marginBottom:5});}catch(e){x.classList.add('hidden');}}else x.classList.add('hidden');}; r(a.sn,'bc-box-sn','#bc-svg-sn'); r(a.id,'bc-box-ecm','#bc-svg-ecm'); r(a.ns,'bc-box-ns','#bc-svg-ns'); openModal('modal-barcode'); }
-        window.handleLogin = async (e, type) => { e.preventDefault(); if(type==='admin'){const p=document.getElementById('login-password').value, u=users.find(x=>x.nik==='admin'); if(u&&u.password===p) startSession(u); else alert('Wrong Password');} else {const n=document.getElementById('login-nik').value, u=users.find(x=>x.nik===n); if(u) startSession(u); else alert('Not Found');} }
-        function startSession(u) { currentUser=u; document.getElementById('login-screen').classList.add('hidden'); document.getElementById('sidebar').classList.remove('hidden'); document.getElementById('main-content').classList.remove('hidden'); document.getElementById('header-username').innerHTML=`<i class="fa-solid fa-user mr-2"></i> ${u.name}`; document.getElementById('user-role-display').innerText=u.role; if(u.role==='admin'){document.querySelectorAll('.admin-only').forEach(e=>e.style.display='block'); showPage('dashboard'); updateSelects('.hub-selector',hubs,'name'); } else {document.querySelectorAll('.admin-only').forEach(e=>e.style.display='none'); showPage('opname');} document.getElementById('form-login-admin').reset(); }
-        window.logout = () => { if(confirm('Logout?')) window.location.reload(); }
         async function addLogToFirestore(action, assetId, assetName, detail) { try { await addDoc(collection(db, HISTORY_PATH), { date: new Date().toISOString(), action, assetId, assetName, detail, actor: currentUser ? `${currentUser.name} (${currentUser.nik})` : 'System' }); } catch(e) {console.error(e)} }
+        
+        // --- ACTION HANDLERS ---
+        window.handleLogin = async (e, type) => { e.preventDefault(); if(type==='admin'){const p=document.getElementById('login-password').value, u=users.find(x=>x.nik==='admin'); if(u&&u.password===p) startSession(u); else alert('Password Salah');} else {const n=document.getElementById('login-nik').value, u=users.find(x=>x.nik===n); if(u) startSession(u); else alert('NIK Tidak Ditemukan');} }
+        function startSession(u) { currentUser=u; document.getElementById('login-screen').classList.add('hidden'); document.getElementById('sidebar').classList.remove('-translate-x-full'); document.getElementById('main-content').classList.remove('hidden'); document.getElementById('header-username').innerHTML=u.name; document.getElementById('user-role-display').innerText=u.role==='admin'?'Admin Mode':'Staff Mode'; if(u.role==='admin'){document.querySelectorAll('.admin-only').forEach(e=>e.style.display='block'); showPage('dashboard'); updateSelects('.hub-selector',hubs,'name'); } else {document.querySelectorAll('.admin-only').forEach(e=>e.style.display='none'); showPage('opname');} document.getElementById('form-login-admin').reset(); }
+        window.logout = () => { if(confirm('Keluar aplikasi?')) window.location.reload(); }
+        
+        window.toggleCamera = async function() { const r=document.getElementById('reader'); if(html5QrCode){try{await html5QrCode.stop();html5QrCode.clear();html5QrCode=null;r.classList.add('hidden');}catch(e){}return;} r.classList.remove('hidden'); html5QrCode = new Html5Qrcode("reader"); try{await html5QrCode.start({facingMode:"environment"},{fps:10,qrbox:{width:250,height:250}},(t)=>{document.getElementById('opname-input').value=t;window.handleOpnameScan(t);html5QrCode.stop().then(()=>{html5QrCode.clear();html5QrCode=null;r.classList.add('hidden');});});}catch(e){alert('Kamera Error: '+e);r.classList.add('hidden');} }
+        window.handleOpnameScan = (val) => { if(!val)return; const a=assets.find(x=>x.id.toLowerCase()===val.toLowerCase()||(x.sn&&x.sn.toLowerCase()===val.toLowerCase())||(x.ns&&x.ns.toLowerCase()===val.toLowerCase())); if(a){document.getElementById('opname-form-details').classList.remove('hidden');document.getElementById('op-current-id').value=a.id;document.getElementById('op-name').innerText=a.name;document.getElementById('op-id-display').innerText=a.id;}else alert('Aset tidak ditemukan'); }
+        window.saveOpnameEntry = async () => { const id=document.getElementById('op-current-id').value, c=document.querySelector('input[name="op-condition"]:checked').value, u=document.querySelector('input[name="op-usage"]:checked').value; await updateDoc(doc(db,ASSETS_PATH,sanitizeId(id)),{status:c,usage:u,lastOpname:new Date().toISOString()}); await addLogToFirestore('Opname',id,document.getElementById('op-name').innerText,`${c}, ${u}`); document.getElementById('opname-session-body').innerHTML+=`<tr class="border-b"><td class="px-4 py-2 text-xs">${new Date().toLocaleTimeString()}</td><td>${document.getElementById('op-name').innerText}</td><td>${c}</td><td class="text-center text-green-500"><i class="fa-solid fa-check"></i></td></tr>`; document.getElementById('opname-form-details').classList.add('hidden'); document.getElementById('opname-input').value=''; }
+        
+        window.saveNewAsset = async (e) => { e.preventDefault(); const f=e.target, idRaw=f.id.value, docId=sanitizeId(idRaw); if(assets.find(a=>a.id===idRaw))return alert('ID Sudah Ada'); await setDoc(doc(db,ASSETS_PATH,docId),{id:idRaw,sn:f.sn.value,ns:f.ns.value,name:f.name.value,group:f.group.value,hub:f.hub.value,location:f.location.value,status:'Baik',usage:'Digunakan',lastOpname:null}); await addLogToFirestore('Add',idRaw,f.name.value,'New'); closeModal('modal-add-asset'); f.reset(); }
+        window.handleMutation = async (e) => { e.preventDefault(); const id=document.getElementById('mutation-asset-id').value, h=document.getElementById('mutation-new-hub').value, l=document.getElementById('mutation-new-loc').value, a=assets.find(x=>x.id===id); await updateDoc(doc(db,ASSETS_PATH,sanitizeId(id)),{hub:h,location:l}); await addLogToFirestore('Mutasi',id,a.name,`Ke ${h}`); e.target.reset(); alert('Mutasi Berhasil'); }
+        window.renderMutationForm = function() { const sel = document.getElementById('mutation-asset-id'); const cur = sel.value; sel.innerHTML = '<option value="">-- Pilih Aset --</option>' + assets.map(a => `<option value="${a.id}">${a.id} - ${a.name}</option>`).join(''); sel.value = cur; sel.onchange = (e) => { const a = assets.find(x=>x.id===e.target.value); if(a) { document.getElementById('mutation-current-hub').value=a.hub; document.getElementById('mutation-current-loc').value=a.location; } } }
+
+        window.handleAddHub = async (e) => { e.preventDefault(); const n=document.getElementById('new-hub-name').value; await setDoc(doc(db,HUBS_PATH,sanitizeId(n.toLowerCase())),{name:n}); document.getElementById('new-hub-name').value=''; }
+        window.handleAddUser = async (e) => { e.preventDefault(); const f=e.target, id=sanitizeId(f.querySelector('#new-user-nik').value); if(users.find(u=>u.nik===f.querySelector('#new-user-nik').value))return alert('NIK Exist'); await setDoc(doc(db,USERS_PATH,id),{nik:f.querySelector('#new-user-nik').value,name:f.querySelector('#new-user-name').value,hub:f.querySelector('#new-user-hub').value,role:'staff'}); f.reset(); }
+        
+        window.handleCSVUpload = function(e){ const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=async(ev)=>{ const rows=ev.target.result.split('\n').map(r=>r.trim()).filter(r=>r); let b=writeBatch(db), c=0, sc=0; for(let i=1;i<rows.length;i++){ const col=rows[i].split(','); if(col.length<4)continue; const [sn,idRaw,ns,nm,grp,hb,lc]=col.map(c=>c?c.replace(/"/g,'').trim():''); if(!idRaw || assets.find(a=>a.id===idRaw))continue; b.set(doc(db,ASSETS_PATH,sanitizeId(idRaw)),{id:idRaw,sn,ns,name:nm,group:grp,hub:hb,location:lc,status:'Baik',usage:'Digunakan',lastOpname:null}); sc++; c++; if(c===400){await b.commit();b=writeBatch(db);c=0;} } if(c>0)await b.commit(); await addLogToFirestore('Import','BATCH','Sys',`Imported ${sc}`); alert(`Import Selesai: ${sc} Data`); e.target.value=''; }; r.readAsText(f); }
+        window.handleDeleteData = async () => { const t=document.getElementById('delete-target').value; if(!t)return; if(!confirm('Yakin hapus SEMUA data ini?'))return; const q=query(collection(db,t==='assets'?ASSETS_PATH:t==='historyLog'?HISTORY_PATH:t==='users'?USERS_PATH:HUBS_PATH)); const s=await getDocs(q); let b=writeBatch(db), c=0; s.forEach(d=>{ if(t==='users'&&d.id==='admin')return; b.delete(d.ref); c++; if(c>=400){b.commit();b=writeBatch(db);c=0;} }); if(c>0)await b.commit(); alert('Data Dihapus'); }
+
+        window.generateBarcode = (id) => { const a=assets.find(x=>x.id===id); if(!a)return; document.getElementById('bc-name').innerText=a.name; document.getElementById('bc-cat').innerText=`${a.category||'-'}/${a.group}`; const r=(v,b,s)=>{const x=document.getElementById(b);if(v&&v!=='-'){x.classList.remove('hidden');try{JsBarcode(s,v,{format:"CODE128",lineColor:"#000",width:2,height:40,displayValue:true,fontSize:12,marginTop:0,marginBottom:5});}catch(e){x.classList.add('hidden');}}else x.classList.add('hidden');}; r(a.sn,'bc-box-sn','#bc-svg-sn'); r(a.id,'bc-box-ecm','#bc-svg-ecm'); r(a.ns,'bc-box-ns','#bc-svg-ns'); openModal('modal-barcode'); }
+        window.showPage = (id) => { if(currentUser?.role!=='admin' && ['dashboard','assets','mutation','settings','print','history-so'].includes(id)) return alert('Access Denied'); document.querySelectorAll('.page-view').forEach(e=>e.classList.add('hidden')); document.querySelectorAll('.nav-item').forEach(e=> { e.classList.remove('bg-slate-700','text-white'); e.classList.add('text-slate-300'); }); document.getElementById('view-'+id).classList.remove('hidden'); const btn=document.getElementById('nav-'+id); if(btn){btn.classList.add('bg-slate-700','text-white'); btn.classList.remove('text-slate-300');} document.getElementById('page-title').innerText = id.replace('-',' ').toUpperCase(); if(id==='assets') window.renderAssetsTable(); if(id==='dashboard') window.renderDashboard(); if(id==='mutation') window.renderMutationForm(); if(id==='settings') window.renderSettings(); if(id==='history') window.renderHistory(); if(id==='print') window.renderPrintFilterInput(); if(id==='history-so') window.renderHistorySO(); if(window.innerWidth < 768) { document.getElementById('sidebar').classList.add('-translate-x-full'); document.getElementById('mobile-overlay').classList.add('hidden'); } }
         window.openModal = (id) => document.getElementById(id).classList.remove('hidden');
         window.closeModal = (id) => document.getElementById(id).classList.add('hidden');
-        window.deleteAsset = async (id) => { if(confirm('Delete?')) await deleteDoc(doc(db, ASSETS_PATH, sanitizeId(id))); }
+        window.deleteAsset = async (id) => { if(confirm('Hapus Aset?')) await deleteDoc(doc(db, ASSETS_PATH, sanitizeId(id))); }
+        window.deleteDocItem = async (c,id) => { if(confirm('Hapus?')) await deleteDoc(doc(db,c,id)); }
+        window.deleteUser = async (id) => { if(confirm('Hapus User?')) await deleteDoc(doc(db,USERS_PATH,sanitizeId(id))); }
+        window.finishOpnameSession = async () => { if(confirm('Selesaikan Sesi?')) { await addLogToFirestore('Report','BATCH','Session End',`By ${currentUser.name}`); document.getElementById('opname-session-body').innerHTML=''; } }
+        window.updateAdminPassword = async (e) => { e.preventDefault(); await updateDoc(doc(db,USERS_PATH,'admin'),{password:e.target.newPass.value}); alert('Password Diubah'); e.target.reset(); }
+        window.updateUser = async (e) => { e.preventDefault(); await updateDoc(doc(db,USERS_PATH,sanitizeId(e.target.nik.value)),{name:e.target.name.value,hub:e.target.hub.value}); closeModal('modal-edit-user'); }
+        window.openEditUserModal = (nik) => { const u=users.find(x=>x.nik===nik); document.getElementById('edit-user-nik-hidden').value=u.nik; document.getElementById('edit-user-nik-display').value=u.nik; document.getElementById('edit-user-name').value=u.name; document.getElementById('edit-user-hub').value=u.hub||''; openModal('modal-edit-user'); }
+        
         document.getElementById('opname-input').addEventListener('keypress', function(e) { if(e.key==='Enter') window.handleOpnameScan(this.value); });
     </script>
 </body>
